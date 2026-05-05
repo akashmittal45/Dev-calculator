@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Dev Cashflow</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#f5f4f0;
+  --card:#ffffff;
+  --border:#e5e4e0;
+  --text:#1a1a18;
+  --text2:#666;
+  --text3:#aaa;
+  --accent:#1a1a18;
+  --green:#0f6e56;
+  --red:#c0392b;
+  --blue:#2d7dd2;
+  --teal:#1D9E75;
+  --input-bg:#f9f9f7;
+  --nav-h:64px;
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;color:var(--text);font-size:15px}
+/* LAYOUT */
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+.screen{display:none;flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:16px 16px calc(var(--nav-h) + var(--safe-bottom) + 16px)}
+.screen.active{display:block}
+/* NAV */
+.nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav-h) + var(--safe-bottom));background:rgba(255,255,255,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:0.5px solid var(--border);display:flex;align-items:flex-start;padding-top:8px;z-index:100}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;border:none;background:none;font-family:inherit}
+.nav-icon{font-size:22px;line-height:1}
+.nav-label{font-size:10px;color:var(--text3);font-weight:400;letter-spacing:0.01em}
+.nav-item.active .nav-icon{filter:none}
+.nav-item.active .nav-label{color:var(--accent);font-weight:600}
+/* HEADER */
+.page-header{margin-bottom:18px}
+.page-title{font-size:22px;font-weight:600;letter-spacing:-0.3px;color:var(--text)}
+.page-sub{font-size:13px;color:var(--text2);margin-top:3px}
+/* CARDS */
+.card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;border:0.5px solid var(--border)}
+.card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:12px}
+/* METRICS ROW */
+.metrics-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.metric{background:var(--input-bg);border-radius:10px;padding:11px 12px}
+.metric-label{font-size:11px;color:var(--text3);margin-bottom:4px;line-height:1.2}
+.metric-value{font-size:17px;font-weight:600;color:var(--text);letter-spacing:-0.3px}
+.metric-value.green{color:var(--green)}
+.metric-value.red{color:var(--red)}
+.metric.full{grid-column:1/-1}
+/* FIELDS */
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.field-row.single{grid-template-columns:1fr}
+.field-row.triple{grid-template-columns:1fr 1fr 1fr}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;color:var(--text2);font-weight:500}
+.field input{width:100%;padding:11px 12px;font-size:16px;border:0.5px solid var(--border);border-radius:10px;background:var(--input-bg);color:var(--text);outline:none;font-family:inherit;-webkit-appearance:none}
+.field input:focus{border-color:#888;background:#fff}
+.field .hint{font-size:11px;color:var(--text3);margin-top:2px}
+/* BAND / YEAR ROWS */
+.row-item{background:var(--input-bg);border-radius:10px;padding:12px;margin-bottom:8px;position:relative}
+.row-item:last-child{margin-bottom:0}
+.row-label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px}
+.row-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row-fields.triple{grid-template-columns:1fr 1fr 1fr}
+.row-input{width:100%;padding:9px 10px;font-size:15px;border:0.5px solid var(--border);border-radius:8px;background:#fff;color:var(--text);outline:none;font-family:inherit;text-align:center;-webkit-appearance:none}
+.row-input:focus{border-color:#888}
+.row-input-label{font-size:10px;color:var(--text3);text-align:center;margin-bottom:4px}
+.remove-btn{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;border:none;background:#e8e8e6;color:#888;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;line-height:1}
+.remove-btn:active{background:#f5c6c6;color:var(--red)}
+.add-btn{width:100%;padding:12px;border:1.5px dashed var(--border);border-radius:10px;background:none;color:var(--text2);font-size:14px;font-family:inherit;cursor:pointer;margin-top:4px}
+.add-btn:active{background:var(--input-bg)}
+/* COST CARD */
+.cost-card{background:var(--card);border-radius:12px;border:0.5px solid var(--border);padding:14px;margin-bottom:10px}
+.cost-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cost-name{font-size:14px;font-weight:600;color:var(--text)}
+.cost-total-field{display:flex;align-items:center;gap:8px}
+.cost-total-field label{font-size:12px;color:var(--text2);white-space:nowrap}
+.cost-total-field input{width:90px;padding:8px 10px;font-size:14px;border:0.5px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--text);outline:none;font-family:inherit;text-align:right}
+.phase-grid{display:grid;gap:6px}
+.phase-cell{display:flex;flex-direction:column;gap:3px}
+.phase-cell label{font-size:10px;color:var(--text3);text-align:center}
+.phase-cell input{padding:7px 4px;font-size:13px;border:0.5px solid var(--border);border-radius:7px;background:var(--input-bg);color:var(--text);outline:none;font-family:inherit;text-align:center;width:100%;-webkit-appearance:none}
+.phase-sum{font-size:11px;font-weight:600;text-align:right;margin-top:6px}
+.phase-sum.ok{color:var(--green)}
+.phase-sum.bad{color:var(--red)}
+/* DIVIDER */
+.divider{border:none;border-top:0.5px solid var(--border);margin:14px 0}
+/* TABLE */
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;border:0.5px solid var(--border);margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+thead th{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;padding:8px 10px;border-bottom:0.5px solid var(--border);text-align:right;background:var(--input-bg)}
+thead th:first-child{text-align:left}
+tbody td{padding:9px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:var(--text)}
+tbody td:first-child{text-align:left;font-weight:600}
+tbody tr:last-child td{border-bottom:none}
+tfoot td{padding:10px;font-weight:700;border-top:1px solid var(--border);text-align:right;background:var(--input-bg)}
+tfoot td:first-child{text-align:left}
+.t-green{color:var(--green)}
+.t-red{color:var(--red)}
+/* CHARTS */
+.chart-wrap{position:relative;width:100%;height:220px;margin-top:4px}
+/* SENSITIVITY */
+.sens-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;margin-bottom:16px}
+.sens-table{border-collapse:separate;border-spacing:3px;font-size:11px}
+.sens-table th{background:var(--input-bg);color:var(--text2);font-weight:600;padding:7px 8px;border-radius:5px;white-space:nowrap}
+.sens-table td{padding:7px 8px;border-radius:5px;text-align:center;white-space:nowrap}
+/* LEGEND */
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)}
+.legend-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+/* SECTION LABEL */
+.section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:8px;margin-top:16px}
+.section-label:first-child{margin-top:0}
+/* HINT TEXT */
+.hint-text{font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SCREEN: PROJECT -->
+<div class="screen active" id="screen-project">
+  <div class="page-header">
+    <div class="page-title">Project Setup</div>
+    <div class="page-sub">Land, FSI & development manager</div>
+  </div>
+
+  <div class="section-label">Land & FSI</div>
+  <div class="card">
+    <div class="field-row">
+      <div class="field"><label>Land area (acres)</label><input type="number" id="acres" value="5" step="0.1" inputmode="decimal" oninput="calc()"></div>
+      <div class="field"><label>Base FSI</label><input type="number" id="fsi-base" value="2.5" step="0.1" inputmode="decimal" oninput="calc()"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Premium FSI factor</label><input type="number" id="fsi-premium" value="1.4" step="0.05" inputmode="decimal" oninput="calc()"></div>
+      <div class="field"><label>Efficiency ratio (%)</label><input type="number" id="efficiency" value="70" step="1" inputmode="decimal" oninput="calc()"><span class="hint">Saleable ÷ built-up</span></div>
+    </div>
+    <div class="field-row single">
+      <div class="field"><label>Total units</label><input type="number" id="units" value="200" step="1" inputmode="numeric" oninput="calc()"></div>
+    </div>
+  </div>
+
+  <div class="section-label">Derived metrics</div>
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">Total saleable FSI</div><div class="metric-value" id="d-fsi">—</div></div>
+    <div class="metric"><div class="metric-label">Built-up area</div><div class="metric-value" id="d-builtup">—</div></div>
+    <div class="metric"><div class="metric-label">Saleable area</div><div class="metric-value" id="d-saleable">—</div></div>
+    <div class="metric"><div class="metric-label">Avg unit size</div><div class="metric-value" id="d-unitsize">—</div></div>
+  </div>
+
+  <div class="section-label" style="margin-top:20px">Development Manager</div>
+  <div class="card">
+    <div class="field-row">
+      <div class="field"><label>DM fee (% of GDV)</label><input type="number" id="dm-fee" value="5" step="0.5" inputmode="decimal" oninput="calc()"></div>
+      <div class="field"><label>RERA liquid (%)</label><input type="number" id="rera-liquid" value="30" step="1" inputmode="numeric" oninput="calc()"></div>
+    </div>
+    <div class="field-row single">
+      <div class="field"><label>RERA locked (%)</label><input type="number" id="rera-locked" value="70" step="1" inputmode="numeric" oninput="calc()"></div>
+    </div>
+  </div>
+
+  <div class="section-label" style="margin-top:20px">GDV Summary</div>
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">Blended price (₹/sqft)</div><div class="metric-value" id="d-blended">—</div></div>
+    <div class="metric"><div class="metric-label">Total GDV</div><div class="metric-value" id="d-gdv">—</div></div>
+    <div class="metric"><div class="metric-label">DM fee</div><div class="metric-value" id="d-dmfee">—</div></div>
+    <div class="metric"><div class="metric-label">Developer GDV</div><div class="metric-value green" id="d-devgdv">—</div></div>
+  </div>
+</div>
+
+<!-- SCREEN: PRICING -->
+<div class="screen" id="screen-pricing">
+  <div class="page-header">
+    <div class="page-title">Pricing Bands</div>
+    <div class="page-sub">Inventory tranches with price escalation</div>
+  </div>
+  <p class="hint-text">Set price per sqft for each tranche. Cumulative % should add to 100%.</p>
+  <div id="bands-container"></div>
+  <button class="add-btn" onclick="addBand()">+ Add band</button>
+
+  <div class="section-label" style="margin-top:20px">Blended preview</div>
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">Blended price</div><div class="metric-value" id="pb-blended">—</div></div>
+    <div class="metric"><div class="metric-label">Total GDV</div><div class="metric-value" id="pb-gdv">—</div></div>
+    <div class="metric"><div class="metric-label">Lowest band</div><div class="metric-value" id="pb-low">—</div></div>
+    <div class="metric"><div class="metric-label">Highest band</div><div class="metric-value" id="pb-high">—</div></div>
+  </div>
+</div>
+
+<!-- SCREEN: COSTS -->
+<div class="screen" id="screen-costs">
+  <div class="page-header">
+    <div class="page-title">Cost Build-up</div>
+    <div class="page-sub">Total cost & year-wise phasing</div>
+  </div>
+  <p class="hint-text">Enter total cost per head (₹ Cr) and phasing % per year. Each row must sum to 100%.</p>
+  <div id="costs-container"></div>
+
+  <div class="section-label" style="margin-top:20px">Cost summary</div>
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">Total project cost</div><div class="metric-value" id="c-total">—</div></div>
+    <div class="metric"><div class="metric-label">Cost per sqft</div><div class="metric-value" id="c-persqft">—</div></div>
+    <div class="metric"><div class="metric-label">Gross margin</div><div class="metric-value" id="c-margin">—</div></div>
+    <div class="metric"><div class="metric-label">Gross profit</div><div class="metric-value" id="c-profit">—</div></div>
+  </div>
+</div>
+
+<!-- SCREEN: SCHEDULE -->
+<div class="screen" id="screen-schedule">
+  <div class="page-header">
+    <div class="page-title">Sales Schedule</div>
+    <div class="page-sub">Year-wise sales, collections & completion</div>
+  </div>
+  <p class="hint-text">Sales % = cumulative inventory sold. Collections % = collected that year. Completion % = cumulative construction done.</p>
+  <div id="sched-container"></div>
+  <button class="add-btn" onclick="addSchedYear()">+ Add year</button>
+
+  <div class="section-label" style="margin-top:20px">Collections preview</div>
+  <div class="table-scroll"><table id="sched-preview-table"></table></div>
+</div>
+
+<!-- SCREEN: CASHFLOW -->
+<div class="screen" id="screen-cashflow">
+  <div class="page-header">
+    <div class="page-title">Cashflow</div>
+    <div class="page-sub">Year-wise inflows, outflows & net position</div>
+  </div>
+
+  <div class="section-label">Project summary</div>
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">Total GDV</div><div class="metric-value" id="cf-gdv">—</div></div>
+    <div class="metric"><div class="metric-label">Total cost</div><div class="metric-value" id="cf-cost">—</div></div>
+    <div class="metric"><div class="metric-label">Gross profit</div><div class="metric-value" id="cf-profit">—</div></div>
+    <div class="metric"><div class="metric-label">Gross margin</div><div class="metric-value" id="cf-margin">—</div></div>
+    <div class="metric full"><div class="metric-label">Peak equity requirement</div><div class="metric-value red" id="cf-peak">—</div></div>
+  </div>
+
+  <div class="section-label" style="margin-top:20px">Year-wise cashflow</div>
+  <div class="table-scroll"><table id="cf-table"></table></div>
+
+  <div class="section-label" style="margin-top:20px">Inflows vs outflows</div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#2d7dd2"></div>Liquid inflow</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div>From 70% locked</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#E24B4A"></div>Outflows</div>
+  </div>
+  <div class="card" style="padding:12px">
+    <div class="chart-wrap"><canvas id="cf-bar-chart"></canvas></div>
+  </div>
+
+  <div class="section-label" style="margin-top:20px">Cumulative net cashflow</div>
+  <div class="card" style="padding:12px">
+    <div class="chart-wrap"><canvas id="cf-line-chart"></canvas></div>
+  </div>
+</div>
+
+<!-- SCREEN: SENSITIVITY -->
+<div class="screen" id="screen-sensitivity">
+  <div class="page-header">
+    <div class="page-title">Sensitivity</div>
+    <div class="page-sub">Gross profit across scenarios (₹ Cr)</div>
+  </div>
+
+  <div class="section-label">Parameters</div>
+  <div class="card">
+    <div class="field-row">
+      <div class="field"><label>Price range (± %)</label><input type="number" id="s-price-range" value="20" step="5" inputmode="numeric" oninput="calcSens()"></div>
+      <div class="field"><label>Price steps</label><input type="number" id="s-price-steps" value="5" min="3" max="9" step="2" inputmode="numeric" oninput="calcSens()"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Cost range (± %)</label><input type="number" id="s-cost-range" value="20" step="5" inputmode="numeric" oninput="calcSens()"></div>
+      <div class="field"><label>Velocity range (± %)</label><input type="number" id="s-vel-range" value="30" step="5" inputmode="numeric" oninput="calcSens()"></div>
+    </div>
+  </div>
+
+  <div class="section-label" style="margin-top:20px">Table 1 — Price vs Construction cost</div>
+  <p class="hint-text" style="margin-top:-4px">Sales velocity at base case</p>
+  <div class="sens-scroll"><table class="sens-table" id="sens-table-1"></table></div>
+
+  <div class="section-label" style="margin-top:20px">Table 2 — Price vs Sales velocity</div>
+  <p class="hint-text" style="margin-top:-4px">Construction cost at base case</p>
+  <div class="sens-scroll"><table class="sens-table" id="sens-table-2"></table></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="nav">
+  <button class="nav-item active" id="nav-project" onclick="switchScreen('project')">
+    <span class="nav-icon">🏗️</span><span class="nav-label">Project</span>
+  </button>
+  <button class="nav-item" id="nav-pricing" onclick="switchScreen('pricing')">
+    <span class="nav-icon">🏷️</span><span class="nav-label">Pricing</span>
+  </button>
+  <button class="nav-item" id="nav-costs" onclick="switchScreen('costs')">
+    <span class="nav-icon">📋</span><span class="nav-label">Costs</span>
+  </button>
+  <button class="nav-item" id="nav-schedule" onclick="switchScreen('schedule')">
+    <span class="nav-icon">📅</span><span class="nav-label">Schedule</span>
+  </button>
+  <button class="nav-item" id="nav-cashflow" onclick="switchScreen('cashflow')">
+    <span class="nav-icon">💰</span><span class="nav-label">Cashflow</span>
+  </button>
+  <button class="nav-item" id="nav-sensitivity" onclick="switchScreen('sensitivity')">
+    <span class="nav-icon">📊</span><span class="nav-label">Sensitivity</span>
+  </button>
+</nav>
+</div><!-- end app -->
+
+<script>
+const SQ_FT_PER_ACRE=43560;
+const SCREENS=['project','pricing','costs','schedule','cashflow','sensitivity'];
+
+let bands=[
+  {cumPct:25,price:12000},
+  {cumPct:50,price:13000},
+  {cumPct:75,price:14000},
+  {cumPct:100,price:15000}
+];
+
+let schedYears=[
+  {sales:25,coll:30,comp:30},
+  {sales:60,coll:40,comp:60},
+  {sales:85,coll:20,comp:80},
+  {sales:100,coll:10,comp:100}
+];
+
+const DEFAULT_COSTS=[
+  {name:'Land cost',key:'land',total:50},
+  {name:'Approvals & statutory',key:'approvals',total:5},
+  {name:'Construction cost',key:'construction',total:120},
+  {name:'Infrastructure',key:'infra',total:15},
+  {name:'Sales & marketing',key:'marketing',total:10},
+  {name:'Interest',key:'interest',total:8},
+  {name:'Contingency',key:'contingency',total:6}
+];
+let costs=DEFAULT_COSTS.map(c=>({...c,phase:initPhase()}));
+
+function initPhase(){
+  let n=schedYears.length+1;
+  let p=Array(n).fill(0);p[0]=100;return p;
+}
+function ensurePhaseLengths(){
+  let n=schedYears.length+1;
+  costs.forEach(c=>{
+    while(c.phase.length<n)c.phase.push(0);
+    while(c.phase.length>n)c.phase.pop();
+  });
+}
+
+function v(id){return parseFloat(document.getElementById(id).value)||0}
+function fmtCr(n){
+  let abs=Math.abs(n);
+  let s=abs>=1e7?'₹'+(abs/1e7).toFixed(2)+' Cr':abs>=1e5?'₹'+(abs/1e5).toFixed(1)+' L':'₹'+Math.round(abs).toLocaleString('en-IN');
+  return n<0?'('+s+')':s;
+}
+function fmtSqft(n){return n>=1e5?(n/1e5).toFixed(2)+' L sqft':Math.round(n).toLocaleString('en-IN')+' sqft'}
+function fmtNum(n){return Math.round(n).toLocaleString('en-IN')}
+
+function switchScreen(name){
+  SCREENS.forEach(s=>{
+    document.getElementById('screen-'+s).classList.toggle('active',s===name);
+    document.getElementById('nav-'+s).classList.toggle('active',s===name);
+  });
+  if(name==='cashflow')renderCashflowTab(computeCashflows(1,1));
+  if(name==='sensitivity')calcSens();
+}
+
+// ---- BANDS ----
+function renderBands(){
+  let html='';
+  bands.forEach((b,i)=>{
+    html+=`<div class="row-item">
+      <div class="row-label">Band ${i+1}</div>
+      <button class="remove-btn" onclick="removeBand(${i})">×</button>
+      <div class="row-fields">
+        <div>
+          <div class="row-input-label">Cumulative % sold</div>
+          <input class="row-input" type="number" min="0" max="100" step="1" inputmode="decimal" value="${b.cumPct}" oninput="updateBand(${i},'cumPct',this.value)">
+        </div>
+        <div>
+          <div class="row-input-label">Price (₹/sqft)</div>
+          <input class="row-input" type="number" min="0" step="500" inputmode="numeric" value="${b.price}" oninput="updateBand(${i},'price',this.value)">
+        </div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('bands-container').innerHTML=html;
+}
+function updateBand(i,f,val){bands[i][f]=parseFloat(val)||0;calc();}
+function addBand(){
+  let last=bands.length?bands[bands.length-1].cumPct:0;
+  bands.push({cumPct:Math.min(100,last+10),price:15000});
+  renderBands();calc();
+}
+function removeBand(i){if(bands.length<=1)return;bands.splice(i,1);renderBands();calc();}
+
+function blendedPrice(){
+  if(!bands.length)return 0;
+  let sorted=[...bands].sort((a,b)=>a.cumPct-b.cumPct);
+  let w=0,prev=0;
+  sorted.forEach(b=>{w+=(b.cumPct-prev)*b.price;prev=b.cumPct;});
+  return w/100;
+}
+
+// ---- SCHEDULE ----
+function renderSched(){
+  let html='';
+  schedYears.forEach((y,i)=>{
+    html+=`<div class="row-item">
+      <div class="row-label">Year ${i+1}</div>
+      <button class="remove-btn" onclick="removeSchedYear(${i})">×</button>
+      <div class="row-fields triple">
+        <div>
+          <div class="row-input-label">Sales %</div>
+          <input class="row-input" type="number" min="0" max="100" step="1" inputmode="decimal" value="${y.sales}" oninput="updateSched(${i},'sales',this.value)">
+        </div>
+        <div>
+          <div class="row-input-label">Collections %</div>
+          <input class="row-input" type="number" min="0" max="100" step="1" inputmode="decimal" value="${y.coll}" oninput="updateSched(${i},'coll',this.value)">
+        </div>
+        <div>
+          <div class="row-input-label">Completion %</div>
+          <input class="row-input" type="number" min="0" max="100" step="1" inputmode="decimal" value="${y.comp}" oninput="updateSched(${i},'comp',this.value)">
+        </div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('sched-container').innerHTML=html;
+}
+function updateSched(i,f,val){schedYears[i][f]=parseFloat(val)||0;ensurePhaseLengths();renderCosts();calc();}
+function addSchedYear(){schedYears.push({sales:100,coll:10,comp:100});ensurePhaseLengths();renderSched();renderCosts();calc();}
+function removeSchedYear(i){if(schedYears.length<=1)return;schedYears.splice(i,1);ensurePhaseLengths();renderSched();renderCosts();calc();}
+
+// ---- COSTS ----
+function renderCosts(){
+  let n=schedYears.length+1;
+  let yearLabels=['Yr0'];
+  for(let i=1;i<n;i++)yearLabels.push('Yr'+i);
+  let cols=`repeat(${n},1fr)`;
+  let html='';
+  costs.forEach((c,ci)=>{
+    let phaseSum=c.phase.reduce((a,b)=>a+(b||0),0);
+    let sumOk=Math.abs(phaseSum-100)<0.5;
+    let phaseInputs=yearLabels.map((lbl,yi)=>`
+      <div class="phase-cell">
+        <label>${lbl}</label>
+        <input type="number" min="0" max="100" step="1" inputmode="decimal" value="${c.phase[yi]||0}" oninput="updateCostPhase(${ci},${yi},this.value)">
+      </div>`).join('');
+    html+=`<div class="cost-card">
+      <div class="cost-header">
+        <div class="cost-name">${c.name}</div>
+        <div class="cost-total-field">
+          <label>₹ Cr</label>
+          <input type="number" min="0" step="0.5" inputmode="decimal" value="${c.total}" oninput="updateCostTotal(${ci},this.value)">
+        </div>
+      </div>
+      <div class="phase-grid" style="grid-template-columns:${cols}">${phaseInputs}</div>
+      <div class="phase-sum ${sumOk?'ok':'bad'}">Phasing: ${phaseSum.toFixed(0)}%${sumOk?' ✓':' ⚠ must = 100%'}</div>
+    </div>`;
+  });
+  document.getElementById('costs-container').innerHTML=html;
+}
+function updateCostTotal(i,val){costs[i].total=parseFloat(val)||0;calc();}
+function updateCostPhase(ci,yi,val){costs[ci].phase[yi]=parseFloat(val)||0;calc();}
+
+// ---- CORE CALC ----
+function calcEffFlows(dy){
+  let res=[];
+  for(let i=0;i<dy.length;i++){
+    let e=0;
+    if(i===0){e=dy[0].sales*dy[0].coll;}
+    else{
+      let prev=dy[i-1],cur=dy[i];
+      e=prev.sales*cur.coll+(cur.sales-prev.sales)*(dy.slice(0,i).reduce((a,y)=>a+y.coll,0)+cur.coll);
+    }
+    res.push(e);
+  }
+  return res;
+}
+
+function getPricedGDV(saleable,velMult){
+  if(!bands.length)return 0;
+  let sorted=[...bands].sort((a,b)=>a.cumPct-b.cumPct);
+  let rev=0,prev=0;
+  sorted.forEach(b=>{rev+=(b.cumPct-prev)/100*saleable*b.price*velMult;prev=b.cumPct;});
+  return rev;
+}
+
+function computeCashflows(velMult,constMult){
+  let acres=v('acres'),fsiBase=v('fsi-base'),fsiPrem=v('fsi-premium');
+  let effR=v('efficiency')/100;
+  let fsiTotal=fsiBase*fsiPrem;
+  let builtUp=acres*SQ_FT_PER_ACRE*fsiTotal;
+  let saleable=builtUp*effR;
+  let dmPct=v('dm-fee')/100;
+  let liqPct=v('rera-liquid')/100;
+  let lockPct=v('rera-locked')/100;
+  let gdv=getPricedGDV(saleable,velMult||1);
+  let dmTotal=gdv*dmPct;
+  let devGdv=gdv-dmTotal;
+  let dy=schedYears.map(y=>({sales:y.sales/100,coll:y.coll/100,comp:y.comp/100}));
+  let effPcts=calcEffFlows(dy);
+  let n=schedYears.length;
+  let pj70d=[],pj70m=[];
+  let yearData=[];
+  for(let i=0;i<n;i++){
+    let ep=effPcts[i];
+    let gc=ep*gdv,dmc=gc*dmPct,devc=gc-dmc;
+    let prevC=i>0?dy[i-1].comp:0,thisC=dy[i].comp;
+    let d30=devc*liqPct,d70=devc*lockPct;
+    let dd70=d70*thisC;
+    for(let j=0;j<i;j++)dd70+=pj70d[j]*(thisC-prevC);
+    pj70d.push(d70);
+    let devIn=d30+dd70;
+    let m30=dmc*liqPct,m70=dmc*lockPct,md70=m70*thisC;
+    for(let j=0;j<i;j++)md70+=pj70m[j]*(thisC-prevC);
+    pj70m.push(m70);
+    let totalOut=0;
+    costs.forEach(c=>{
+      let pp=(c.phase[i+1]||0)/100;
+      let amt=c.total*1e7*pp;
+      if(c.key==='construction')amt*=(constMult||1);
+      totalOut+=amt;
+    });
+    yearData.push({label:'Yr'+(i+1),gc,dmc,devc,d30,d70,dd70,devIn,totalOut,net:devIn-totalOut,comp:thisC,ep});
+  }
+  let y0out=0;
+  costs.forEach(c=>{
+    let pp=(c.phase[0]||0)/100;
+    let amt=c.total*1e7*pp;
+    if(c.key==='construction')amt*=(constMult||1);
+    y0out+=amt;
+  });
+  let totalCost=costs.reduce((a,c)=>{
+    let amt=c.total*1e7;
+    if(c.key==='construction')amt*=(constMult||1);
+    return a+amt;
+  },0);
+  let grossProfit=devGdv-totalCost;
+  return{yearData,y0out,totalCost,gdv,devGdv,dmTotal,grossProfit,saleable,builtUp,fsiTotal};
+}
+
+// ---- RENDER SCHED PREVIEW ----
+function renderSchedPreview(data){
+  let{yearData}=data;
+  let html=`<thead><tr><th>Year</th><th>Coll %</th><th>Gross</th><th>Dev portion</th><th>30% liquid</th><th>70% disb.</th><th>Dev inflow</th></tr></thead><tbody>`;
+  yearData.forEach(y=>{
+    html+=`<tr><td>${y.label}</td><td>${(y.ep*100).toFixed(1)}%</td><td>${fmtCr(y.gc)}</td><td>${fmtCr(y.devc)}</td><td>${fmtCr(y.d30)}</td><td>${fmtCr(y.dd70)}</td><td>${fmtCr(y.devIn)}</td></tr>`;
+  });
+  html+=`</tbody>`;
+  document.getElementById('sched-preview-table').innerHTML=html;
+}
+
+// ---- CASHFLOW TAB ----
+let cfBar=null,cfLine=null;
+function renderCashflowTab(data){
+  let{yearData,y0out,totalCost,gdv,devGdv,grossProfit}=data;
+  document.getElementById('cf-gdv').textContent=fmtCr(gdv);
+  document.getElementById('cf-cost').textContent=fmtCr(totalCost);
+  let pel=document.getElementById('cf-profit');
+  pel.textContent=fmtCr(grossProfit);
+  pel.className='metric-value '+(grossProfit>=0?'green':'red');
+  document.getElementById('cf-margin').textContent=gdv>0?((grossProfit/gdv)*100).toFixed(1)+'%':'—';
+  let cum=-y0out,peak=cum;
+  yearData.forEach(y=>{cum+=y.net;if(cum<peak)peak=cum;});
+  document.getElementById('cf-peak').textContent=fmtCr(Math.abs(peak));
+
+  let html=`<thead><tr><th>Year</th><th>Inflow</th><th>Outflow</th><th>Net</th><th>Cumul.</th></tr></thead><tbody>`;
+  cum=-y0out;
+  html+=`<tr><td>Yr0</td><td>—</td><td class="t-red">(${fmtCr(y0out)})</td><td class="t-red">(${fmtCr(y0out)})</td><td class="t-red">(${fmtCr(y0out)})</td></tr>`;
+  let labs=['Yr0'],ins=[0],disbs=[0],outs=[y0out/1e7],cums=[-y0out/1e7];
+  yearData.forEach(y=>{
+    cum+=y.net;
+    let nc=y.net>=0?'t-green':'t-red';
+    let cc=cum>=0?'t-green':'t-red';
+    html+=`<tr><td>${y.label}</td><td>${fmtCr(y.devIn)}</td><td class="t-red">(${fmtCr(y.totalOut)})</td><td class="${nc}">${y.net>=0?fmtCr(y.net):'('+fmtCr(Math.abs(y.net))+')'}</td><td class="${cc}">${cum>=0?fmtCr(cum):'('+fmtCr(Math.abs(cum))+')'}</td></tr>`;
+    labs.push(y.label);ins.push(y.d30/1e7);disbs.push(y.dd70/1e7);outs.push(y.totalOut/1e7);cums.push(cum/1e7);
+  });
+  html+=`</tbody>`;
+  document.getElementById('cf-table').innerHTML=html;
+
+  if(cfBar)cfBar.destroy();
+  cfBar=new Chart(document.getElementById('cf-bar-chart').getContext('2d'),{
+    type:'bar',
+    data:{labels:labs,datasets:[
+      {label:'Liquid',data:ins,backgroundColor:'#2d7dd2',borderRadius:3,stack:'in'},
+      {label:'70%',data:disbs,backgroundColor:'#1D9E75',borderRadius:3,stack:'in'},
+      {label:'Out',data:outs.map(x=>-x),backgroundColor:'#E24B4A',borderRadius:3,stack:'out'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'₹'+Math.abs(c.parsed.y).toFixed(1)+' Cr'}}},scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:10}}},y:{stacked:false,ticks:{font:{size:10},callback:v=>'₹'+v.toFixed(0)},grid:{color:'rgba(0,0,0,0.04)'}}}}
+  });
+
+  if(cfLine)cfLine.destroy();
+  cfLine=new Chart(document.getElementById('cf-line-chart').getContext('2d'),{
+    type:'line',
+    data:{labels:labs,datasets:[{
+      label:'Cumulative',data:cums,
+      borderColor:'#2d7dd2',backgroundColor:'rgba(45,125,210,0.08)',
+      fill:true,tension:0.3,
+      pointBackgroundColor:cums.map(v=>v>=0?'#1D9E75':'#E24B4A'),
+      pointRadius:5
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'₹'+c.parsed.y.toFixed(1)+' Cr'}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{ticks:{font:{size:10},callback:v=>'₹'+v.toFixed(0)},grid:{color:'rgba(0,0,0,0.04)'}}}}
+  });
+}
+
+// ---- SENSITIVITY ----
+function calcSens(){
+  let data=computeCashflows(1,1);
+  renderSensitivity(data);
+}
+
+function renderSensitivity(baseData){
+  let pr=v('s-price-range')/100,cr=v('s-cost-range')/100,vr=v('s-vel-range')/100;
+  let steps=Math.max(3,Math.min(7,Math.round(v('s-price-steps'))));
+  if(steps%2===0)steps++;
+  function linspace(c,r,n){let a=[];for(let i=0;i<n;i++)a.push(c*(1+r*(-1+2*i/(n-1))));return a;}
+  let pm=linspace(1,pr,steps),cm=linspace(1,cr,steps),vm=linspace(1,vr,steps);
+  let base=baseData.grossProfit;
+  function getProfit(vm2,cm2){return computeCashflows(vm2,cm2).grossProfit;}
+  function makeTable(rows,cols,rFmt,cFmt,tid){
+    let h=`<thead><tr><th>↓ \\ →</th>`;
+    cols.forEach(m=>h+=`<th>${cFmt(m)}</th>`);
+    h+=`</tr></thead><tbody>`;
+    rows.forEach(rm=>{
+      h+=`<tr><td style="background:#f0f0ec;font-weight:600;text-align:left">${rFmt(rm)}</td>`;
+      cols.forEach(cm2=>{
+        let p=getProfit(rm,cm2),pc=(p/1e7).toFixed(1);
+        let isBase=Math.abs(rm-1)<0.001&&Math.abs(cm2-1)<0.001;
+        let bg=p>=0?`hsl(152,${Math.min(70,Math.abs(p/base)*50)}%,${p>base?87:92}%)`:`hsl(0,60%,92%)`;
+        let col=p>=0?'#0a5c3a':'#8b1a1a';
+        h+=`<td style="background:${bg};color:${col};font-weight:${isBase?700:400};outline:${isBase?'2px solid #1a1a18':'none'}">₹${pc}</td>`;
+      });
+      h+=`</tr>`;
+    });
+    h+=`</tbody>`;
+    document.getElementById(tid).innerHTML=h;
+  }
+  makeTable(pm,cm,m=>(m*100).toFixed(0)+'%p',m=>(m*100).toFixed(0)+'%c','sens-table-1');
+  makeTable(pm,vm,m=>(m*100).toFixed(0)+'%p',m=>(m*100).toFixed(0)+'%v','sens-table-2');
+}
+
+// ---- MAIN CALC ----
+function calc(){
+  let acres=v('acres'),fsiBase=v('fsi-base'),fsiPrem=v('fsi-premium');
+  let effR=v('efficiency')/100,units=v('units');
+  let fsiTotal=fsiBase*fsiPrem;
+  let builtUp=acres*SQ_FT_PER_ACRE*fsiTotal;
+  let saleable=builtUp*effR;
+  document.getElementById('d-fsi').textContent=fsiTotal.toFixed(2);
+  document.getElementById('d-builtup').textContent=fmtSqft(builtUp);
+  document.getElementById('d-saleable').textContent=fmtSqft(saleable);
+  document.getElementById('d-unitsize').textContent=units>0?fmtNum(Math.round(saleable/units))+' sqft':'—';
+
+  let bp=blendedPrice(),gdv=saleable*bp,dmFee=gdv*v('dm-fee')/100,devGdv=gdv-dmFee;
+  document.getElementById('d-blended').textContent='₹'+Math.round(bp).toLocaleString('en-IN');
+  document.getElementById('d-gdv').textContent=fmtCr(gdv);
+  document.getElementById('d-dmfee').textContent=fmtCr(dmFee);
+  document.getElementById('d-devgdv').textContent=fmtCr(devGdv);
+
+  let prices=bands.map(b=>b.price);
+  document.getElementById('pb-blended').textContent='₹'+Math.round(bp).toLocaleString('en-IN');
+  document.getElementById('pb-gdv').textContent=fmtCr(gdv);
+  document.getElementById('pb-low').textContent=prices.length?'₹'+Math.min(...prices).toLocaleString('en-IN'):'—';
+  document.getElementById('pb-high').textContent=prices.length?'₹'+Math.max(...prices).toLocaleString('en-IN'):'—';
+
+  let totalCost=costs.reduce((a,c)=>a+c.total*1e7,0);
+  let profit=devGdv-totalCost;
+  let margin=gdv>0?(profit/gdv)*100:0;
+  document.getElementById('c-total').textContent=fmtCr(totalCost);
+  document.getElementById('c-persqft').textContent=saleable>0?'₹'+Math.round(totalCost/saleable).toLocaleString('en-IN')+'/sqft':'—';
+  document.getElementById('c-margin').textContent=margin.toFixed(1)+'%';
+  let cpEl=document.getElementById('c-profit');
+  cpEl.textContent=fmtCr(profit);
+  cpEl.className='metric-value '+(profit>=0?'green':'red');
+
+  renderBands();renderSched();renderCosts();
+  let data=computeCashflows(1,1);
+  renderSchedPreview(data);
+  let cur=SCREENS.find(s=>document.getElementById('screen-'+s).classList.contains('active'));
+  if(cur==='cashflow')renderCashflowTab(data);
+  if(cur==='sensitivity')renderSensitivity(data);
+}
+
+ensurePhaseLengths();
+calc();
+</script>
+</body>
+</html>
