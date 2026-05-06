@@ -1,0 +1,2459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Dev Cockpit</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* ============================================================
+   TOKENS
+============================================================ */
+:root {
+  --bg:          #f7f6f3;
+  --bg2:         #efede9;
+  --surface:     #ffffff;
+  --surface2:    #f4f3f0;
+  --border:      rgba(0,0,0,0.08);
+  --border2:     rgba(0,0,0,0.05);
+  --text:        #111110;
+  --text2:       #6b6a68;
+  --text3:       #a09e9b;
+  --emerald:     #0d6b4f;
+  --emerald-bg:  #eaf5f0;
+  --amber:       #92600a;
+  --amber-bg:    #fef6e4;
+  --red:         #b03a2e;
+  --red-bg:      #fdf0ee;
+  --blue:        #2458b3;
+  --blue-bg:     #eef3fc;
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg:   0 8px 24px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04);
+  --r-sm:        8px;
+  --r-md:        12px;
+  --r-lg:        16px;
+  --r-xl:        20px;
+  --sidebar-w:   220px;
+  --nav-h:       64px;
+  --kpi-h:       72px;
+  --font:        -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:          #111110;
+    --bg2:         #1a1918;
+    --surface:     #1f1e1c;
+    --surface2:    #272624;
+    --border:      rgba(255,255,255,0.08);
+    --border2:     rgba(255,255,255,0.04);
+    --text:        #f0efec;
+    --text2:       #8c8a86;
+    --text3:       #5c5a56;
+    --emerald:     #34d399;
+    --emerald-bg:  #0d2a1f;
+    --amber:       #fbbf24;
+    --amber-bg:    #2a1f08;
+    --red:         #f87171;
+    --red-bg:      #2a0f0e;
+    --blue:        #60a5fa;
+    --blue-bg:     #0e1f3a;
+    --shadow-sm:   0 1px 3px rgba(0,0,0,0.3);
+    --shadow-md:   0 4px 12px rgba(0,0,0,0.4);
+    --shadow-lg:   0 8px 24px rgba(0,0,0,0.5);
+  }
+}
+
+/* ============================================================
+   RESET & BASE
+============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html { height: 100%; font-size: 15px; }
+body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased; overflow: hidden; }
+
+/* ============================================================
+   SETUP SCREEN
+============================================================ */
+#setup-screen {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.setup-card {
+  background: var(--surface);
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  padding: 40px;
+  width: 100%; max-width: 460px;
+}
+.setup-logo { font-size: 28px; margin-bottom: 8px; }
+.setup-title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); margin-bottom: 4px; }
+.setup-sub { font-size: 14px; color: var(--text2); margin-bottom: 32px; }
+.setup-field { margin-bottom: 16px; }
+.setup-field label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+.setup-field input {
+  width: 100%; padding: 12px 14px; font-size: 15px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text); font-family: var(--font);
+  outline: none; transition: border-color 0.15s;
+}
+.setup-field input:focus { border-color: var(--blue); background: var(--surface); }
+.setup-field input::placeholder { color: var(--text3); }
+.setup-btn {
+  width: 100%; padding: 14px; margin-top: 8px;
+  background: var(--text); color: var(--bg);
+  border: none; border-radius: var(--r-sm);
+  font-size: 15px; font-weight: 600; font-family: var(--font);
+  cursor: pointer; transition: opacity 0.15s;
+}
+.setup-btn:hover { opacity: 0.85; }
+.setup-required { font-size: 11px; color: var(--text3); margin-top: 12px; text-align: center; }
+
+/* ============================================================
+   APP SHELL
+============================================================ */
+#app { display: none; height: 100vh; height: 100dvh; }
+
+/* DESKTOP LAYOUT */
+@media (min-width: 768px) {
+  #app { display: flex; flex-direction: row; }
+  .sidebar { width: var(--sidebar-w); flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+  .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .kpi-ribbon { height: var(--kpi-h); flex-shrink: 0; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 0; overflow-x: auto; }
+  .content-area { flex: 1; overflow-y: auto; padding: 28px 28px 40px; }
+  .bottom-nav { display: none; }
+}
+
+/* MOBILE LAYOUT */
+@media (max-width: 767px) {
+  #app { display: flex; flex-direction: column; }
+  .sidebar { display: none; }
+  .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+  .kpi-ribbon { height: auto; flex-shrink: 0; background: var(--surface); border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+  .kpi-ribbon .kpi-item { background: var(--surface); padding: 12px 14px; }
+  .content-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px 16px calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 16px); }
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); background: rgba(255,255,255,0.94); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; align-items: flex-start; padding-top: 8px; z-index: 50; }
+  @media (prefers-color-scheme: dark) { .bottom-nav { background: rgba(31,30,28,0.94); } }
+}
+
+/* ============================================================
+   SIDEBAR
+============================================================ */
+.sidebar-header { padding: 20px 16px 16px; border-bottom: 1px solid var(--border); }
+.project-name { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.project-meta { font-size: 11px; color: var(--text3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-nav { flex: 1; padding: 12px 8px; overflow-y: auto; }
+.nav-section { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); padding: 8px 8px 4px; }
+.nav-btn {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: var(--r-sm);
+  border: none; background: none; font-family: var(--font);
+  font-size: 13px; font-weight: 500; color: var(--text2);
+  cursor: pointer; text-align: left; transition: all 0.12s;
+}
+.nav-btn:hover { background: var(--surface2); color: var(--text); }
+.nav-btn.active { background: var(--surface2); color: var(--text); font-weight: 600; }
+.nav-btn .nav-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+.nav-badge { margin-left: auto; font-size: 10px; background: var(--red-bg); color: var(--red); padding: 1px 6px; border-radius: 10px; font-weight: 600; }
+.sidebar-footer { padding: 12px 8px; border-top: 1px solid var(--border); }
+.edit-project-btn { width: 100%; padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--border); background: none; font-family: var(--font); font-size: 12px; color: var(--text2); cursor: pointer; transition: all 0.12s; }
+.edit-project-btn:hover { background: var(--surface2); }
+
+/* ============================================================
+   KPI RIBBON
+============================================================ */
+.kpi-item { display: flex; flex-direction: column; justify-content: center; padding: 0 20px; border-right: 1px solid var(--border); min-width: 130px; }
+.kpi-item:last-child { border-right: none; }
+.kpi-label { font-size: 11px; color: var(--text3); font-weight: 500; letter-spacing: 0.03em; margin-bottom: 3px; white-space: nowrap; }
+.kpi-value { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); white-space: nowrap; }
+.kpi-value.pos { color: var(--emerald); }
+.kpi-value.neg { color: var(--red); }
+.kpi-value.warn { color: var(--amber); }
+
+/* ============================================================
+   BOTTOM NAV (MOBILE)
+============================================================ */
+.bnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 4px 0; border: none; background: none; font-family: var(--font); }
+.bnav-icon { font-size: 20px; line-height: 1; }
+.bnav-label { font-size: 9px; color: var(--text3); font-weight: 500; }
+.bnav-item.active .bnav-label { color: var(--text); font-weight: 700; }
+
+/* ============================================================
+   SCREEN / SECTION SYSTEM
+============================================================ */
+.screen { display: none; }
+.screen.active { display: block; }
+.page-header { margin-bottom: 24px; }
+.page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; color: var(--text); }
+.page-sub { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+/* ============================================================
+   CARDS & SURFACES
+============================================================ */
+.card { background: var(--surface); border-radius: var(--r-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm); margin-bottom: 16px; }
+.card-pad { padding: 20px; }
+.card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text3); margin-bottom: 16px; }
+.card-divider { border: none; border-top: 1px solid var(--border2); margin: 16px 0; }
+
+/* ============================================================
+   METRIC GRID
+============================================================ */
+.metric-grid { display: grid; gap: 12px; margin-bottom: 16px; }
+.metric-grid-2 { grid-template-columns: 1fr 1fr; }
+.metric-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+.metric-grid-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 767px) {
+  .metric-grid-3, .metric-grid-4 { grid-template-columns: 1fr 1fr; }
+}
+.metric { background: var(--surface2); border-radius: var(--r-md); padding: 14px 16px; }
+.metric.full { grid-column: 1 / -1; }
+.metric-label { font-size: 11px; color: var(--text3); font-weight: 500; margin-bottom: 6px; }
+.metric-val { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); }
+.metric-val.pos { color: var(--emerald); }
+.metric-val.neg { color: var(--red); }
+.metric-val.warn { color: var(--amber); }
+.metric-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* ============================================================
+   FORM ELEMENTS
+============================================================ */
+.field-group { display: grid; gap: 12px; margin-bottom: 16px; }
+.field-group-2 { grid-template-columns: 1fr 1fr; }
+.field-group-3 { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 767px) { .field-group-3 { grid-template-columns: 1fr 1fr; } }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; }
+.field input {
+  padding: 10px 12px; font-size: 15px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text); font-family: var(--font);
+  outline: none; width: 100%; transition: border-color 0.15s, background 0.15s;
+  -webkit-appearance: none;
+}
+.field input:focus { border-color: var(--blue); background: var(--surface); }
+.field .hint { font-size: 11px; color: var(--text3); }
+
+/* ============================================================
+   DYNAMIC ROW ITEMS (bands, years)
+============================================================ */
+.row-item { background: var(--surface2); border-radius: var(--r-md); padding: 14px; margin-bottom: 8px; position: relative; border: 1px solid var(--border2); }
+.row-label { font-size: 12px; font-weight: 700; color: var(--text2); margin-bottom: 10px; letter-spacing: 0.02em; }
+.row-fields-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row-fields-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.row-input-label { font-size: 10px; color: var(--text3); font-weight: 600; text-align: center; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+.row-input {
+  width: 100%; padding: 9px 8px; font-size: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text); font-family: var(--font);
+  text-align: center; outline: none; -webkit-appearance: none;
+  transition: border-color 0.15s;
+}
+.row-input:focus { border-color: var(--blue); }
+.remove-btn {
+  position: absolute; top: 12px; right: 12px;
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text3); font-size: 14px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-family: var(--font); transition: all 0.12s;
+}
+.remove-btn:hover { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+.add-btn {
+  width: 100%; padding: 11px; margin-top: 4px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--r-md); background: none;
+  color: var(--text3); font-size: 13px; font-weight: 500;
+  font-family: var(--font); cursor: pointer; transition: all 0.12s;
+}
+.add-btn:hover { border-color: var(--text2); color: var(--text2); background: var(--surface2); }
+
+/* ============================================================
+   COST CARDS
+============================================================ */
+.cost-card { background: var(--surface); border-radius: var(--r-md); border: 1px solid var(--border); padding: 16px; margin-bottom: 10px; }
+.cost-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+.cost-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.cost-total-row { display: flex; align-items: center; gap: 8px; }
+.cost-total-row label { font-size: 11px; color: var(--text3); white-space: nowrap; }
+.cost-total-row input { width: 88px; padding: 7px 10px; font-size: 13px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text); font-family: var(--font); outline: none; text-align: right; -webkit-appearance: none; }
+.cost-total-row input:focus { border-color: var(--blue); }
+.phase-grid { display: grid; gap: 6px; }
+.phase-cell { display: flex; flex-direction: column; gap: 3px; }
+.phase-cell label { font-size: 10px; color: var(--text3); text-align: center; font-weight: 600; letter-spacing: 0.04em; }
+.phase-cell input { padding: 7px 4px; font-size: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text); font-family: var(--font); text-align: center; outline: none; width: 100%; -webkit-appearance: none; }
+.phase-cell input:focus { border-color: var(--blue); background: var(--surface); }
+.phase-sum { font-size: 11px; font-weight: 600; text-align: right; margin-top: 8px; }
+.phase-sum.ok { color: var(--emerald); }
+.phase-sum.bad { color: var(--red); }
+
+/* ============================================================
+   TABLES
+============================================================ */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--r-md); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+thead th { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: right; background: var(--surface2); }
+thead th:first-child { text-align: left; }
+tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border2); text-align: right; color: var(--text); }
+tbody td:first-child { text-align: left; font-weight: 600; }
+tbody tr:last-child td { border-bottom: none; }
+tfoot td { padding: 11px 12px; font-weight: 700; border-top: 1px solid var(--border); text-align: right; background: var(--surface2); }
+tfoot td:first-child { text-align: left; }
+thead tr:first-child th[colspan] { font-size:9px; padding-bottom:4px; padding-top:8px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.7; }
+thead tr:nth-child(2) th { padding-top:4px; }
+.td-pos { color: var(--emerald); }
+.td-neg { color: var(--red); }
+.td-warn { color: var(--amber); }
+
+/* ============================================================
+   CHARTS
+============================================================ */
+.chart-wrap { position: relative; width: 100%; }
+.chart-wrap canvas { border-radius: var(--r-sm); }
+
+/* ============================================================
+   WARNINGS
+============================================================ */
+.warnings-container { margin-bottom: 16px; }
+.warning-card {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px; border-radius: var(--r-md);
+  margin-bottom: 8px; border: 1px solid transparent;
+}
+.warning-card.warn { background: var(--amber-bg); border-color: rgba(146,96,10,0.2); }
+.warning-card.error { background: var(--red-bg); border-color: rgba(176,58,46,0.2); }
+.warning-card.info { background: var(--blue-bg); border-color: rgba(36,88,179,0.2); }
+.warning-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.warning-text { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.5; }
+.warning-text span { font-weight: 400; color: var(--text2); display: block; font-size: 11px; }
+
+/* ============================================================
+   DIVIDER
+============================================================ */
+.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+.section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 12px; margin-top: 20px; }
+.section-label:first-child { margin-top: 0; }
+.hint-text { font-size: 12px; color: var(--text3); margin-bottom: 14px; line-height: 1.6; }
+
+/* ============================================================
+   OVERVIEW SPECIFICS
+============================================================ */
+.overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media (min-width: 1024px) { .overview-grid { grid-template-columns: 1fr 1fr 1fr; } }
+.big-metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; box-shadow: var(--shadow-sm); }
+.big-metric-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+.big-metric-val { font-size: 32px; font-weight: 800; letter-spacing: -1px; color: var(--text); line-height: 1; }
+.big-metric-val.pos { color: var(--emerald); }
+.big-metric-val.neg { color: var(--red); }
+.big-metric-val.warn { color: var(--amber); }
+.big-metric-sub { font-size: 12px; color: var(--text3); margin-top: 6px; }
+
+/* ============================================================
+   SENSITIVITY
+============================================================ */
+.sens-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.sens-table { border-collapse: separate; border-spacing: 3px; font-size: 11px; }
+.sens-table th { background: var(--surface2); color: var(--text2); font-weight: 700; padding: 7px 10px; border-radius: var(--r-sm); white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+.sens-table td { padding: 8px 10px; border-radius: var(--r-sm); text-align: center; white-space: nowrap; font-weight: 500; }
+
+/* ============================================================
+   LEGEND
+============================================================ */
+.legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+/* ============================================================
+   PROJECT LIST
+============================================================ */
+.proj-item { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border2); gap:12px; flex-wrap:wrap; }
+.proj-item:last-child { border-bottom:none; }
+.proj-item-info { flex:1; min-width:0; }
+.proj-item-name { font-size:14px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.proj-item-meta { font-size:11px; color:var(--text3); margin-top:2px; }
+.proj-item-actions { display:flex; gap:6px; flex-shrink:0; }
+.proj-btn { padding:7px 14px; border-radius:var(--r-sm); border:1px solid var(--border); background:var(--surface); font-size:12px; font-weight:500; font-family:var(--font); cursor:pointer; color:var(--text2); transition:all 0.12s; }
+.proj-btn:hover { background:var(--surface2); color:var(--text); }
+.proj-btn.danger { color:var(--red); }
+.proj-btn.danger:hover { background:var(--red-bg); }
+.proj-btn.primary { background:var(--text); color:var(--bg); border-color:var(--text); }
+.no-projects { font-size:13px; color:var(--text3); padding:20px 0; text-align:center; }
+
+/* ============================================================
+   SCROLLBAR
+============================================================ */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     SETUP SCREEN
+============================================================ -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">🏢</div>
+    <div class="setup-title">Dev Cockpit</div>
+    <div class="setup-sub">Real estate feasibility for developers</div>
+    <div class="setup-field">
+      <label>Project name *</label>
+      <input type="text" id="s-project-name" placeholder="e.g. Greenfield Residences" maxlength="60">
+    </div>
+    <div class="setup-field">
+      <label>Location</label>
+      <input type="text" id="s-location" placeholder="e.g. Devanahalli, Bangalore" maxlength="60">
+    </div>
+    <div class="setup-field">
+      <label>Developer name</label>
+      <input type="text" id="s-developer" placeholder="e.g. Akash Developments" maxlength="60">
+    </div>
+    <button class="setup-btn" onclick="launchApp()">Open Cockpit →</button>
+    <div class="setup-required">* Required to continue</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     APP SHELL
+============================================================ -->
+<div id="app">
+
+  <!-- SIDEBAR (desktop) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="project-name" id="sb-project-name">—</div>
+      <div class="project-meta" id="sb-project-meta">—</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Overview</div>
+      <button class="nav-btn active" id="snav-overview" onclick="switchScreen('overview')">
+        <span class="nav-icon">◈</span> Dashboard
+      </button>
+      <div class="nav-section" style="margin-top:8px">Configure</div>
+      <button class="nav-btn" id="snav-project" onclick="switchScreen('project')">
+        <span class="nav-icon">⊞</span> Project setup
+      </button>
+      <button class="nav-btn" id="snav-pricing" onclick="switchScreen('pricing')">
+        <span class="nav-icon">◎</span> Pricing bands
+      </button>
+      <button class="nav-btn" id="snav-costs" onclick="switchScreen('costs')">
+        <span class="nav-icon">≡</span> Cost build-up
+        <span class="nav-badge" id="cost-badge" style="display:none">!</span>
+      </button>
+      <button class="nav-btn" id="snav-schedule" onclick="switchScreen('schedule')">
+        <span class="nav-icon">◷</span> Sales schedule
+      </button>
+      <div class="nav-section" style="margin-top:8px">Analysis</div>
+      <button class="nav-btn" id="snav-cashflow" onclick="switchScreen('cashflow')">
+        <span class="nav-icon">↕</span> Cashflow
+      </button>
+      <button class="nav-btn" id="snav-irr" onclick="switchScreen('irr')">
+        <span class="nav-icon">⟳</span> IRR breakup
+      </button>
+      <div class="nav-section" style="margin-top:8px">Tools</div>
+      <button class="nav-btn" id="snav-export" onclick="switchScreen('export')">
+        <span class="nav-icon">⬡</span> Export
+      </button>
+      <button class="nav-btn" id="snav-explainer" onclick="switchScreen('explainer')">
+        <span class="nav-icon">?</span> How it works
+      </button>
+      <button class="nav-btn" id="snav-projects" onclick="switchScreen('projects')">
+        <span class="nav-icon">▤</span> Saved projects
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="edit-project-btn" onclick="editProject()">✎ Edit project details</button>
+    </div>
+  </aside>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+
+    <!-- KPI RIBBON -->
+    <div class="kpi-ribbon">
+      <div class="kpi-item">
+        <div class="kpi-label">Total GDV</div>
+        <div class="kpi-value" id="k-gdv">—</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-label">Gross Profit</div>
+        <div class="kpi-value" id="k-profit">—</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-label">Margin</div>
+        <div class="kpi-value" id="k-margin">—</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-label">Equity IRR</div>
+        <div class="kpi-value" id="k-equity">—</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-label">Peak Debt</div>
+        <div class="kpi-value" id="k-breakeven">—</div>
+      </div>
+    </div>
+
+    <!-- CONTENT AREA -->
+    <div class="content-area">
+
+      <!-- WARNINGS -->
+      <div class="warnings-container" id="warnings-container"></div>
+
+      <!-- ── OVERVIEW ─────────────────────────────────── -->
+      <div class="screen active" id="screen-overview">
+        <div class="page-header">
+          <div class="page-title" id="ov-project-title">—</div>
+          <div class="page-sub" id="ov-project-sub">—</div>
+        </div>
+
+        <div class="overview-grid" id="ov-big-metrics"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px" id="ov-chart-grid">
+          <div class="card card-pad">
+            <div class="card-title">Cashflow timeline</div>
+            <div class="chart-wrap" style="height:200px"><canvas id="ov-cf-chart"></canvas></div>
+          </div>
+          <div class="card card-pad">
+            <div class="card-title">Cost breakdown</div>
+            <div class="chart-wrap" style="height:200px"><canvas id="ov-cost-chart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">Project assumptions snapshot</div>
+          <div id="ov-assumptions"></div>
+        </div>
+      </div>
+
+      <!-- ── PROJECT SETUP ─────────────────────────────── -->
+      <div class="screen" id="screen-project">
+        <div class="page-header">
+          <div class="page-title">Project Setup</div>
+          <div class="page-sub">Land parameters, FSI & RERA configuration</div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">Project timeline</div>
+          <div class="field-group field-group-3">
+            <div class="field"><label>Start quarter</label>
+              <select id="start-quarter" onchange="calcOutputsOnly()" style="padding:10px 12px;font-size:15px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-family:var(--font);outline:none;width:100%;-webkit-appearance:none">
+                <option value="1">Q1 (Jan–Mar)</option>
+                <option value="2" selected>Q2 (Apr–Jun)</option>
+                <option value="3">Q3 (Jul–Sep)</option>
+                <option value="4">Q4 (Oct–Dec)</option>
+              </select>
+            </div>
+            <div class="field"><label>Start year</label><input type="number" id="start-year" value="2025" step="1" inputmode="numeric" oninput="calcOutputsOnly()"></div>
+            <div class="field"><label>Pre-launch gap (quarters)</label><input type="number" id="prelaunch-gap" value="3" step="1" min="1" max="8" inputmode="numeric" oninput="calcOutputsOnly()"><span class="hint">Quarters before sales/construction begin</span></div>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">Land & FSI</div>
+          <div class="field-group field-group-3">
+            <div class="field"><label>Land area (acres)</label><input type="number" id="acres" value="" step="0.1" inputmode="decimal" placeholder="e.g. 5" oninput="onProjectInputChange()"></div>
+            <div class="field"><label>Base FSI</label><input type="number" id="fsi-base" value="" step="0.1" inputmode="decimal" placeholder="e.g. 2.5" oninput="onProjectInputChange()"></div>
+            <div class="field"><label>Premium FSI (%)</label><input type="number" id="fsi-premium-pct" value="" step="5" inputmode="decimal" placeholder="e.g. 40" oninput="onProjectInputChange()"><span class="hint">% of base FSI</span></div>
+          </div>
+          <div class="field-group field-group-3">
+            <div class="field"><label>Premium FSI cost (₹/sqft)</label><input type="number" id="fsi-premium-cost" value="" step="50" inputmode="decimal" placeholder="e.g. 800" oninput="onProjectInputChange()"><span class="hint">Cost per sqft on premium FSI portion</span></div>
+            <div class="field"><label>Total units (if no mix)</label><input type="number" id="units" value="" step="1" inputmode="numeric" placeholder="e.g. 200" oninput="calcOutputsOnly()"><span class="hint">Used for avg unit size</span></div>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">Derived metrics</div>
+          <div class="metric-grid metric-grid-4">
+            <div class="metric"><div class="metric-label">Base FSI area</div><div class="metric-val" id="d-base-fsi-area">—</div></div>
+            <div class="metric"><div class="metric-label">Premium FSI area</div><div class="metric-val" id="d-prem-fsi-area">—</div></div>
+            <div class="metric"><div class="metric-label">Total saleable area</div><div class="metric-val" id="d-saleable">—</div></div>
+            <div class="metric"><div class="metric-label">Avg unit size</div><div class="metric-val" id="d-unitsize">—</div></div>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">Land treatment</div>
+          <p class="hint-text" style="margin-top:-4px">There are two distinct concepts here:<br><br>
+            <strong style="color:var(--text)">Land cost (in cost build-up)</strong> — actual cash you're paying or have committed to pay. This shows up as a real outflow in the cashflow statement. If land is already owned and fully paid, set this to 0.<br><br>
+            <strong style="color:var(--text)">Land opportunity cost (below)</strong> — the notional market value of land you already own. No cash moves, so it does NOT appear in cashflow. But it is treated as a Year 0 outflow when computing IRR — because deploying land worth ₹X to a project means you're forgoing the option to sell it for ₹X. Without this, IRR on already-owned land looks artificially great.</p>
+          <div class="field-group field-group-2">
+            <div class="field"><label>Land opportunity cost (₹ Cr)</label><input type="number" id="land-opp-cost" value="0" step="1" inputmode="decimal" oninput="calcOutputsOnly()"><span class="hint">Used in IRR only — set to 0 if buying land afresh</span></div>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">Financing & returns</div>
+          <p class="hint-text" style="margin-top:-4px">Year 0 outflows are equity-funded. From Year 1 onwards, any operational shortfall is funded by construction debt at the interest rate below. Surpluses repay debt first, then return to equity. The hurdle rate is your benchmark return for IRR comparison.</p>
+          <div class="field-group field-group-2">
+            <div class="field"><label>Interest rate (% p.a.)</label><input type="number" id="int-rate" value="12" step="0.25" inputmode="decimal" oninput="calcOutputsOnly()"></div>
+            <div class="field"><label>Hurdle rate for IRR (%)</label><input type="number" id="hurdle-rate" value="18" step="0.5" inputmode="decimal" oninput="calcOutputsOnly()"></div>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">Unit mix (optional)</div>
+          <p class="hint-text" style="margin-top:-4px">By default, blended pricing is driven by the pricing bands tab. Toggle on unit mix to override total saleable area calculation with a defined apartment mix. Pricing bands still apply on top — they determine how price escalates across inventory tranches.</p>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+            <label style="font-size:13px;color:var(--text);font-weight:500">Use unit mix</label>
+            <input type="checkbox" id="use-unit-mix" onchange="toggleUnitMix()" style="width:18px;height:18px;cursor:pointer">
+          </div>
+          <div id="unit-mix-section" style="display:none">
+            <div id="unit-mix-container"></div>
+            <button class="add-btn" onclick="addUnitType()">+ Add unit type</button>
+            <div class="metric-grid metric-grid-3" style="margin-top:14px">
+              <div class="metric"><div class="metric-label">Total units</div><div class="metric-val" id="um-total-units">—</div></div>
+              <div class="metric"><div class="metric-label">Saleable area (mix)</div><div class="metric-val" id="um-saleable">—</div></div>
+              <div class="metric"><div class="metric-label">Vs FSI saleable</div><div class="metric-val" id="um-vs-fsi">—</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">GDV summary</div>
+          <div class="metric-grid metric-grid-4">
+            <div class="metric"><div class="metric-label">Blended price (₹/sqft)</div><div class="metric-val" id="d-blended">—</div></div>
+            <div class="metric"><div class="metric-label">Total GDV</div><div class="metric-val" id="d-gdv">—</div></div>
+            <div class="metric"><div class="metric-label">DM fee</div><div class="metric-val" id="d-dmfee">—</div></div>
+            <div class="metric"><div class="metric-label">Developer GDV</div><div class="metric-val pos" id="d-devgdv">—</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PRICING ────────────────────────────────────── -->
+      <div class="screen" id="screen-pricing">
+        <div class="page-header">
+          <div class="page-title">Pricing Bands</div>
+          <div class="page-sub">Price escalation across inventory tranches</div>
+        </div>
+        <p class="hint-text">Define the price per sqft for each tranche of inventory. Cumulative % sold should total 100%.</p>
+        <div id="bands-container"></div>
+        <button class="add-btn" onclick="addBand()">+ Add band</button>
+
+        <div class="section-label" style="margin-top:24px">Blended realisation</div>
+        <div class="metric-grid metric-grid-4">
+          <div class="metric"><div class="metric-label">Blended price</div><div class="metric-val" id="pb-blended">—</div></div>
+          <div class="metric"><div class="metric-label">Total GDV</div><div class="metric-val" id="pb-gdv">—</div></div>
+          <div class="metric"><div class="metric-label">Lowest band</div><div class="metric-val" id="pb-low">—</div></div>
+          <div class="metric"><div class="metric-label">Highest band</div><div class="metric-val" id="pb-high">—</div></div>
+        </div>
+      </div>
+
+      <!-- ── COSTS ──────────────────────────────────────── -->
+      <div class="screen" id="screen-costs">
+        <div class="page-header">
+          <div class="page-title">Cost Build-up</div>
+          <div class="page-sub">Total cost per head with year-wise phasing</div>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">Development Manager fee & RERA</div>
+          <p class="hint-text" style="margin-top:-4px">DM fee is a % of total GDV — it's deducted from collections as customers pay. The DM's portion follows the same RERA 30/70 escrow split as yours (they don't get paid upfront), so no year-wise phasing is needed here. The RERA split below applies to both your collections and the DM's portion.</p>
+          <div class="field-group field-group-3">
+            <div class="field"><label>DM fee (% of GDV)</label><input type="number" id="dm-fee" value="5" step="0.5" inputmode="decimal" oninput="calcOutputsOnly()"></div>
+            <div class="field"><label>RERA liquid (%)</label><input type="number" id="rera-liquid" value="30" step="1" inputmode="numeric" oninput="calcOutputsOnly()"></div>
+            <div class="field"><label>RERA locked (%)</label><input type="number" id="rera-locked" value="70" step="1" inputmode="numeric" oninput="calcOutputsOnly()"></div>
+          </div>
+          <div class="field-group field-group-2" style="margin-top:10px">
+            <div class="field"><label>Implied DM fee total</label><input type="text" id="dm-fee-total" value="—" disabled style="opacity:0.7"></div>
+          </div>
+        </div>
+
+        <p class="hint-text">Enter total cost (₹ Cr) and phasing % per year for all other cost heads. Each row must sum to 100%.</p>
+        <div id="costs-container"></div>
+        <div class="section-label" style="margin-top:24px">Cost summary</div>
+        <div class="metric-grid metric-grid-4">
+          <div class="metric"><div class="metric-label">Total project cost</div><div class="metric-val" id="c-total">—</div></div>
+          <div class="metric"><div class="metric-label">Cost per sqft</div><div class="metric-val" id="c-persqft">—</div></div>
+          <div class="metric"><div class="metric-label">Gross margin</div><div class="metric-val" id="c-margin">—</div></div>
+          <div class="metric"><div class="metric-label">Gross profit</div><div class="metric-val" id="c-profit">—</div></div>
+        </div>
+      </div>
+
+      <!-- ── SCHEDULE ───────────────────────────────────── -->
+      <div class="screen" id="screen-schedule">
+        <div class="page-header">
+          <div class="page-title">Sales Schedule</div>
+          <div class="page-sub">Year-wise sales velocity, collections & construction completion</div>
+        </div>
+        <p class="hint-text">All three are <strong>cumulative</strong> by end of each year, capped at 100%, never decreasing. Sales % = total inventory sold so far. Collections % = % of sold value collected so far. Completion % = construction milestone reached (triggers RERA 70% release). Year-on-year changes drive the actual cashflows.</p>
+        <div id="sched-container"></div>
+        <button class="add-btn" onclick="addSchedYear()">+ Add year</button>
+        <div class="section-label" style="margin-top:24px">Collections preview</div>
+        <div class="table-wrap"><table id="sched-preview-table"></table></div>
+      </div>
+
+      <!-- ── CASHFLOW ───────────────────────────────────── -->
+      <div class="screen" id="screen-cashflow">
+        <div class="page-header">
+          <div class="page-title">Cashflow</div>
+          <div class="page-sub">Year-wise inflows, outflows, debt, equity & total CF</div>
+        </div>
+        <div class="metric-grid metric-grid-4" style="margin-bottom:20px">
+          <div class="metric"><div class="metric-label">Total GDV</div><div class="metric-val" id="cf-gdv">—</div></div>
+          <div class="metric"><div class="metric-label">Total cost</div><div class="metric-val" id="cf-cost">—</div></div>
+          <div class="metric"><div class="metric-label">Gross profit</div><div class="metric-val" id="cf-profit">—</div></div>
+          <div class="metric"><div class="metric-label">Gross margin</div><div class="metric-val" id="cf-margin">—</div></div>
+          <div class="metric"><div class="metric-label">Equity invested</div><div class="metric-val warn" id="cf-equity">—</div></div>
+          <div class="metric"><div class="metric-label">Peak debt</div><div class="metric-val warn" id="cf-peakdebt">—</div></div>
+          <div class="metric"><div class="metric-label">Equity IRR</div><div class="metric-val pos" id="cf-projirr">—</div></div>
+          <div class="metric"><div class="metric-label">Break-even</div><div class="metric-val" id="cf-equityirr">—</div></div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">Year-wise cashflow</div>
+          <p class="hint-text" style="margin-top:-4px"><strong>Operating</strong> shows what the project earns and spends each year (financing-agnostic). <strong>Project CF</strong> = Net CF − Interest (project's true cash position). <strong>Cumulative</strong> peaks negative when capital need is highest, turns positive at break-even. <strong>Financing</strong> shows how the gap is funded — debt drawn or repaid plus interest. <strong>Equity CF</strong> is what flows to/from the equity holder.</p>
+          <div class="table-wrap"><table id="cf-table"></table></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px" id="cf-charts-grid">
+          <div class="card card-pad">
+            <div class="card-title">Inflows vs outflows</div>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot" style="background:#2d7dd2"></div>Liquid (30%)</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#0d6b4f"></div>From locked (70%)</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#b03a2e"></div>Outflows</div>
+            </div>
+            <div class="chart-wrap" style="height:220px"><canvas id="cf-bar-chart"></canvas></div>
+          </div>
+          <div class="card card-pad">
+            <div class="card-title">Debt outstanding</div>
+            <div class="chart-wrap" style="height:220px"><canvas id="cf-debt-chart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── IRR BREAKUP ────────────────────────────────── -->
+      <div class="screen" id="screen-irr">
+        <div class="page-header">
+          <div class="page-title">Equity IRR Breakup</div>
+          <div class="page-sub">How your return is calculated, quarter by quarter</div>
+        </div>
+
+        <div class="metric-grid metric-grid-4" style="margin-bottom:20px">
+          <div class="metric"><div class="metric-label">Equity IRR (annualised)</div><div class="metric-val pos" id="irr-val">—</div></div>
+          <div class="metric"><div class="metric-label">IRR with land opp. cost</div><div class="metric-val" id="irr-val-land">—</div></div>
+          <div class="metric"><div class="metric-label">Equity invested</div><div class="metric-val warn" id="irr-equity-in">—</div></div>
+          <div class="metric"><div class="metric-label">Equity returned</div><div class="metric-val pos" id="irr-equity-out">—</div></div>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">Quarterly equity cashflows</div>
+          <p class="hint-text" style="margin-top:-4px">This is the exact series used to compute Equity IRR. Each row is one quarter. Negative = cash invested by you. Positive = cash returned to you after debt is serviced.</p>
+          <div class="table-wrap"><table id="irr-cf-table"></table></div>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">NPV curve</div>
+          <p class="hint-text" style="margin-top:-4px">Net Present Value of the equity cashflow series at different discount rates. Where the curve crosses zero is the IRR.</p>
+          <div class="chart-wrap" style="height:260px"><canvas id="irr-npv-chart"></canvas></div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">IRR sensitivity</div>
+          <p class="hint-text" style="margin-top:-4px">How Equity IRR changes if key assumptions shift by ±10%.</p>
+          <div class="table-wrap"><table id="irr-sens-table"></table></div>
+        </div>
+      </div>
+
+      <!-- ── EXPORT ─────────────────────────────────────── -->
+      <div class="screen" id="screen-export">
+        <div class="page-header">
+          <div class="page-title">Export</div>
+          <div class="page-sub">Download project data and reports</div>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">Excel export</div>
+          <p class="hint-text" style="margin-top:-4px">Downloads a multi-sheet Excel file with all assumptions, cost build-up, sales schedule, year-wise cashflows, and summary KPIs.</p>
+          <button onclick="exportExcel()" style="padding:12px 24px;background:var(--text);color:var(--bg);border:none;border-radius:var(--r-sm);font-size:14px;font-weight:600;font-family:var(--font);cursor:pointer">Download Excel (.xlsx)</button>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">PDF export</div>
+          <p class="hint-text" style="margin-top:-4px">Downloads a PDF with the overview dashboard, cashflow table, and charts. Best viewed on desktop for higher quality.</p>
+          <button onclick="exportPDF()" style="padding:12px 24px;background:var(--text);color:var(--bg);border:none;border-radius:var(--r-sm);font-size:14px;font-weight:600;font-family:var(--font);cursor:pointer">Download PDF</button>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">Executive summary</div>
+          <p class="hint-text" style="margin-top:-4px">A concise one-page summary with project identity, KPIs, assumptions, risk highlights, and key charts. Suitable for sharing with investors or partners.</p>
+          <button onclick="exportExecSummary()" style="padding:12px 24px;background:var(--text);color:var(--bg);border:none;border-radius:var(--r-sm);font-size:14px;font-weight:600;font-family:var(--font);cursor:pointer">Download Executive Summary (PDF)</button>
+        </div>
+      </div>
+
+      <!-- ── EXPLAINER ──────────────────────────────────── -->
+      <div class="screen" id="screen-explainer">
+        <div class="page-header">
+          <div class="page-title">How It Works</div>
+          <div class="page-sub">A guide to every section of the feasibility cockpit</div>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">Overview</div>
+          <p style="font-size:13px;color:var(--text);line-height:1.8">This application models the financial feasibility of a residential apartment project from a developer's perspective. It answers the key questions: <em>Is this project profitable? How much capital do I need? When do I get it back? What's my return?</em></p>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">1. Project Setup — Land & FSI</div>
+          <p style="font-size:13px;color:var(--text);line-height:1.8"><strong>Land area (acres)</strong> — the total plot.<br><br>
+          <strong>Base FSI</strong> — the permitted floor space index. Multiplied by land area (in sqft) to give the base saleable area. For example: 5 acres × 43,560 sqft/acre × 2.5 FSI = 5,44,500 sqft.<br><br>
+          <strong>Premium FSI (%)</strong> — additional FSI you purchase above base. Entered as a % of base FSI. For example: 40% premium on a 2.5 base = 1.0 additional FSI, giving total FSI of 3.5.<br><br>
+          <strong>Premium FSI cost (₹/sqft)</strong> — the per-sqft cost you pay to the authority for the premium portion. This automatically populates the "Premium FSI cost" line in Cost Build-up.<br><br>
+          <strong>Total saleable area</strong> = Base FSI area + Premium FSI area. This is the number used across pricing, costs, and cashflows.</p>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">2. Land Treatment & IRR</div>
+          <p style="font-size:13px;color:var(--text);line-height:1.8"><strong>Land cost (in Cost Build-up)</strong> — actual cash paid for the land. This appears as a real outflow in the cashflow statement.<br><br>
+          <strong>Land opportunity cost (in Project Setup)</strong> — the notional market value of land you already own. No cash moves, so this does NOT appear in cashflow. However, it IS included as a Year 0 outflow when computing IRR. Why? Because deploying land worth ₹X means you're forgoing the option to sell it for ₹X. Without this, IRR on already-owned land looks artificially high.<br><br>
+          <strong>If buying land afresh:</strong> enter the cost in Cost Build-up, leave opportunity cost = 0.<br>
+          <strong>If you already own the land:</strong> set Land cost = 0, enter market value as opportunity cost.<br>
+          <strong>Hybrid:</strong> both inputs work together — they're additive for IRR purposes.</p>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">3. Pricing Bands</div>
+          <p style="font-size:13px;color:var(--text);line-height:1.8">Real projects don't sell all units at the same price — early buyers get lower prices, prices escalate as the project gains traction. Pricing bands let you model this:<br><br>
+          Each band says "for the first X% of inventory sold, the price is ₹Y/sqft." The blended realisation is the weighted average across all bands. This drives the Total GDV calculation.<br><br>
+          The cumulative % in the last band should reach 100% to cover all inventory.</p>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">4. Cost Build-up</div>
+          <p style="font-size:13px;color:var(--text);line-height:1.8"><strong>Land cost</strong> — flat ₹ Cr amount. The total purchase price or advance.<br><br>
+          <strong>Approvals & statutory</strong> — per-sqft cost × total saleable area. Covers plan sanction, RERA registration, BBMP/BDA fees, etc.<br><br>
+          <strong>Premium FSI cost</strong> — automatically derived from Project Setup (premium area × cost/sqft). Read-only.<br><br>
+          <strong>Construction cost</strong> — per-sqft cost × total saleable area. The core civil + MEP + finishing cost.<br><br>
+          <strong>Marketing</strong> — flat ₹ Cr, discretionary. Your advertising, sample flat, events budget.<br><br>
+          <strong>Sales brokerage</strong> — % of GDV. Unlike other costs, brokerage is paid on each sale (follows the sales schedule, not construction phasing). It doesn't have user-editable year-wise phasing — it automatically distributes based on when units are sold.<br><br>
+          <strong>Year-wise phasing (%)</strong> — for each cost head (except brokerage), you specify what % of the total is spent in each year. Must sum to 100%.</p>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">5. Development Manager Fee & RERA</div>
+          <p style="font-size:13px;color:var(--text);line-height:1.8"><strong>DM fee</strong> — a % of GDV paid to the development manager. It's deducted from customer collections (not a separate cash outflow). The DM receives their share over time as customers pay, following the same RERA escrow rules.<br><br>
+          <strong>RERA escrow split</strong> — under RERA, all customer payments go into an escrow account. Typically 30% is liquid (developer can use freely) and 70% is locked until construction milestones are met. As the project reaches completion %, a corresponding share of the locked amount is released.<br><br>
+          Both the developer's portion and the DM's portion follow this 30/70 split.</p>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">6. Sales Schedule</div>
+          <p style="font-size:13px;color:var(--text);line-height:1.8">All three inputs are <strong>cumulative</strong> by end of each year, capped at 100%, and never decreasing year-on-year:<br><br>
+          <strong>Sales %</strong> — total inventory sold by that year-end (e.g. 60% means 60% of all units are sold by Year 2).<br><br>
+          <strong>Collections %</strong> — of the total sold value, how much has actually been collected from buyers by that year-end.<br><br>
+          <strong>Completion %</strong> — cumulative construction milestone reached. This is what triggers the release of the 70% locked RERA escrow.<br><br>
+          The year-on-year <em>change</em> in (Sales × Collections) gives the actual cash coming in each year as a fraction of GDV.</p>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">7. Cashflow & Financing</div>
+          <p style="font-size:13px;color:var(--text);line-height:1.8">The cashflow table shows year-by-year money movement, grouped into three sections:<br><br>
+          <strong>Operating</strong> — Inflow (developer's collections released through RERA) minus Outflows (all cost heads phased into that year). Net CF is the operational surplus or shortfall.<br><br>
+          <strong>Project CF</strong> — Net CF minus Interest on outstanding debt. This is the project's true cash position. The Cumulative column tracks the running total — it peaks negative when capital need is highest, and turns positive at break-even.<br><br>
+          <strong>Financing</strong> — Year 0 outflows are equity-funded. From Year 1 onwards, any shortfall (after interest) is covered by construction debt. Surpluses repay debt first, then flow to equity. Interest accrues at the input rate on outstanding debt balance.<br><br>
+          <strong>Equity CF</strong> — what actually flows to/from the equity holder after debt is serviced.</p>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">8. IRR</div>
+          <p style="font-size:13px;color:var(--text);line-height:1.8"><strong>Project IRR</strong> — the un-levered internal rate of return. Based on the operational cashflow series (Net CF), ignoring how it's financed. Measures the project's intrinsic return — useful for comparing projects apples-to-apples.<br><br>
+          <strong>Equity IRR</strong> — the levered return on equity invested. Based on the Equity CF series (after debt draws, repayments, and interest). This is your actual return as the equity holder — always higher than Project IRR when debt is used (leverage effect).<br><br>
+          <strong>Land opportunity cost</strong> — when entered, both IRRs are adjusted by adding the notional land value as an additional Year 0 outflow. This gives a more realistic return benchmark for projects on already-owned land.<br><br>
+          <strong>Hurdle rate</strong> — your benchmark return (e.g. 18%). The cockpit flags in green/amber/red whether IRR clears it.</p>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">9. Unit Mix (Optional)</div>
+          <p style="font-size:13px;color:var(--text);line-height:1.8">By default, total saleable area is derived from FSI. Toggle on the unit mix to override this with a defined apartment configuration (1 BHK, 2 BHK, 3 BHK, etc.).<br><br>
+          Each type specifies a count and average size. The total area from the mix is compared against the FSI-derived area — a large gap may indicate the mix doesn't fully utilise available FSI or exceeds it.<br><br>
+          Pricing bands still apply on top — the unit mix determines the total area, the pricing bands determine price escalation across the inventory.</p>
+        </div>
+      </div>
+
+      <!-- ── PROJECTS ───────────────────────────────────── -->
+      <div class="screen" id="screen-projects">
+        <div class="page-header">
+          <div class="page-title">Saved Projects</div>
+          <div class="page-sub">Save, load, and manage your feasibility models</div>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="card-title">Current project</div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span id="cur-proj-name" style="font-size:15px;font-weight:600;color:var(--text)">—</span>
+            <button onclick="saveProject()" style="padding:9px 20px;background:var(--text);color:var(--bg);border:none;border-radius:var(--r-sm);font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer">Save project</button>
+            <button onclick="saveProjectAs()" style="padding:9px 20px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-weight:500;font-family:var(--font);cursor:pointer">Save as copy</button>
+          </div>
+          <div id="save-status" style="font-size:12px;color:var(--emerald);margin-top:8px;display:none"></div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-title">All saved projects</div>
+          <p class="hint-text" style="margin-top:-4px">Projects are saved in this browser on this device. Clearing browser data will remove them.</p>
+          <div id="projects-list"></div>
+        </div>
+      </div>
+
+    </div><!-- end content-area -->
+  </div><!-- end main-area -->
+
+  <!-- BOTTOM NAV (mobile) -->
+  <nav class="bottom-nav">
+    <button class="bnav-item active" id="bnav-overview" onclick="switchScreen('overview')"><span class="bnav-icon">◈</span><span class="bnav-label">Overview</span></button>
+    <button class="bnav-item" id="bnav-project" onclick="switchScreen('project')"><span class="bnav-icon">⊞</span><span class="bnav-label">Setup</span></button>
+    <button class="bnav-item" id="bnav-pricing" onclick="switchScreen('pricing')"><span class="bnav-icon">◎</span><span class="bnav-label">Pricing</span></button>
+    <button class="bnav-item" id="bnav-costs" onclick="switchScreen('costs')"><span class="bnav-icon">≡</span><span class="bnav-label">Costs</span></button>
+    <button class="bnav-item" id="bnav-schedule" onclick="switchScreen('schedule')"><span class="bnav-icon">◷</span><span class="bnav-label">Schedule</span></button>
+    <button class="bnav-item" id="bnav-cashflow" onclick="switchScreen('cashflow')"><span class="bnav-icon">↕</span><span class="bnav-label">Cashflow</span></button>
+    <button class="bnav-item" id="bnav-irr" onclick="switchScreen('irr')"><span class="bnav-icon">⟳</span><span class="bnav-label">IRR</span></button>
+    <button class="bnav-item" id="bnav-export" onclick="switchScreen('export')"><span class="bnav-icon">⬡</span><span class="bnav-label">Export</span></button>
+    <button class="bnav-item" id="bnav-projects" onclick="switchScreen('projects')"><span class="bnav-icon">▤</span><span class="bnav-label">Projects</span></button>
+  </nav>
+</div><!-- end app -->
+
+<script>
+/* ============================================================
+   CONSTANTS & STATE
+============================================================ */
+const SQ_FT_PER_ACRE = 43560;
+const SCREENS = ['overview','project','pricing','costs','schedule','cashflow','irr','export','explainer','projects'];
+
+let project = { name:'', location:'', developer:'' };
+
+let bands = [
+  {cumPct:25, price:10000},
+  {cumPct:50, price:10500},
+  {cumPct:75, price:11000},
+  {cumPct:100,price:11500}
+];
+
+let unitMix = [
+  {name:'1 BHK', count:0, size:650},
+  {name:'2 BHK', count:0, size:1100},
+  {name:'3 BHK', count:0, size:1500}
+];
+let useUnitMix = false;
+
+let schedYears = [
+  {sales:25, coll:30, comp:30},
+  {sales:60, coll:40, comp:60},
+  {sales:85, coll:60, comp:80},
+  {sales:100,coll:100, comp:100}
+];
+
+// Cost heads. type: 'flat' = ₹ Cr fixed; 'perSqft' = ₹/sqft × saleable; 'pctGDV' = % of GDV (mirrors sales)
+const DEFAULT_COSTS = [
+  {name:'Land cost',           key:'land',         type:'flat',    total:0},
+  {name:'Approvals & statutory',key:'approvals',   type:'perSqft', perSqft:0, total:0},
+  {name:'Premium FSI cost',    key:'premiumFsi',   type:'perSqft', perSqft:0, total:0, derived:true},
+  {name:'Construction cost',   key:'construction', type:'perSqft', perSqft:0, total:0},
+  {name:'Marketing',           key:'marketing',    type:'flat',    total:0},
+  {name:'Sales brokerage',     key:'brokerage',    type:'pctSales',pctSales:0, total:0, derived:true}
+];
+let costs = DEFAULT_COSTS.map(c => ({...c, phase: initPhase()}));
+
+function initPhase() {
+  let n = schedYears.length + 1;
+  let p = Array(n).fill(0); p[0] = 100; return p;
+}
+function ensurePhaseLengths() {
+  let n = schedYears.length + 1;
+  costs.forEach(c => {
+    while (c.phase.length < n) c.phase.push(0);
+    while (c.phase.length > n) c.phase.pop();
+  });
+}
+
+/* ============================================================
+   HELPERS
+============================================================ */
+function v(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+function fmtCr(n) {
+  let abs = Math.abs(n);
+  let s = abs >= 1e7 ? '₹'+(abs/1e7).toFixed(2)+' Cr'
+        : abs >= 1e5 ? '₹'+(abs/1e5).toFixed(1)+' L'
+        : '₹'+Math.round(abs).toLocaleString('en-IN');
+  return n < 0 ? '('+s+')' : s;
+}
+function fmtCrShort(n) {
+  let abs = Math.abs(n);
+  let s = abs >= 1e7 ? '₹'+(abs/1e7).toFixed(1)+' Cr'
+        : abs >= 1e5 ? '₹'+(abs/1e5).toFixed(0)+' L'
+        : '₹'+Math.round(abs).toLocaleString('en-IN');
+  return n < 0 ? '('+s+')' : s;
+}
+function fmtSqft(n) {
+  return n >= 1e5 ? (n/1e5).toFixed(2)+' L sqft' : Math.round(n).toLocaleString('en-IN')+' sqft';
+}
+function fmtNum(n) { return Math.round(n).toLocaleString('en-IN'); }
+
+/* ============================================================
+   SETUP / LAUNCH
+============================================================ */
+function launchApp() {
+  let name = document.getElementById('s-project-name').value.trim();
+  if (!name) { document.getElementById('s-project-name').focus(); return; }
+  project.name = name;
+  project.location = document.getElementById('s-location').value.trim();
+  project.developer = document.getElementById('s-developer').value.trim();
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  updateProjectIdentity();
+  ensurePhaseLengths();
+  calc();
+}
+
+function editProject() {
+  document.getElementById('s-project-name').value = project.name;
+  document.getElementById('s-location').value = project.location;
+  document.getElementById('s-developer').value = project.developer;
+  document.getElementById('setup-screen').style.display = 'flex';
+}
+
+function updateProjectIdentity() {
+  let meta = [project.location, project.developer].filter(Boolean).join(' · ');
+  document.getElementById('sb-project-name').textContent = project.name || '—';
+  document.getElementById('sb-project-meta').textContent = meta || 'No details added';
+  document.getElementById('ov-project-title').textContent = project.name || '—';
+  document.getElementById('ov-project-sub').textContent = meta || '';
+}
+
+// Allow Enter key on setup
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('setup-screen').style.display !== 'none') launchApp();
+});
+
+/* ============================================================
+   NAVIGATION
+============================================================ */
+function switchScreen(name) {
+  SCREENS.forEach(s => {
+    document.getElementById('screen-'+s).classList.toggle('active', s === name);
+    let sn = document.getElementById('snav-'+s);
+    let bn = document.getElementById('bnav-'+s);
+    if (sn) sn.classList.toggle('active', s === name);
+    if (bn) bn.classList.toggle('active', s === name);
+  });
+  if (name === 'cashflow') renderCashflowTab(computeCashflows(1,1));
+  if (name === 'overview') renderOverview(computeCashflows(1,1));
+  if (name === 'projects') renderProjectsList();
+  if (name === 'irr') renderIRRTab(computeCashflows(1,1));
+}
+
+/* ============================================================
+   BANDS
+============================================================ */
+function renderBands() {
+  let html = '';
+  bands.forEach((b,i) => {
+    html += `<div class="row-item">
+      <div class="row-label">Band ${i+1}</div>
+      <button class="remove-btn" onclick="removeBand(${i})">×</button>
+      <div class="row-fields-2">
+        <div><div class="row-input-label">Cumulative % sold</div>
+          <input class="row-input" type="number" min="0" max="100" step="1" inputmode="decimal" value="${b.cumPct}" oninput="updateBand(${i},'cumPct',this.value)"></div>
+        <div><div class="row-input-label">Price (₹/sqft)</div>
+          <input class="row-input" type="number" min="0" step="500" inputmode="numeric" value="${b.price}" oninput="updateBand(${i},'price',this.value)"></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('bands-container').innerHTML = html;
+}
+function updateBand(i,f,val) { bands[i][f] = parseFloat(val)||0; calcOutputsOnly(); }
+function addBand() {
+  let last = bands.length ? bands[bands.length-1].cumPct : 0;
+  bands.push({cumPct: Math.min(100, last+10), price: 15000});
+  renderBands(); calcOutputsOnly();
+}
+function removeBand(i) {
+  if (bands.length <= 1) return;
+  bands.splice(i,1); renderBands(); calcOutputsOnly();
+}
+function blendedPrice() {
+  if (!bands.length) return 0;
+  let sorted = [...bands].sort((a,b) => a.cumPct - b.cumPct);
+  let w = 0, prev = 0;
+  sorted.forEach(b => { w += (b.cumPct - prev) * b.price; prev = b.cumPct; });
+  return w / 100;
+}
+
+/* ============================================================
+   UNIT MIX
+============================================================ */
+function toggleUnitMix() {
+  useUnitMix = document.getElementById('use-unit-mix').checked;
+  document.getElementById('unit-mix-section').style.display = useUnitMix ? '' : 'none';
+  if (useUnitMix) renderUnitMix();
+  calcOutputsOnly();
+}
+function renderUnitMix() {
+  let html = '';
+  unitMix.forEach((u,i) => {
+    html += `<div class="row-item">
+      <div class="row-label">${u.name}</div>
+      <button class="remove-btn" onclick="removeUnitType(${i})">×</button>
+      <div class="row-fields-3">
+        <div><div class="row-input-label">Type</div>
+          <input class="row-input" type="text" value="${u.name}" oninput="updateUnit(${i},'name',this.value)" style="text-align:left"></div>
+        <div><div class="row-input-label">Count</div>
+          <input class="row-input" type="number" min="0" step="1" inputmode="numeric" value="${u.count}" oninput="updateUnit(${i},'count',this.value)"></div>
+        <div><div class="row-input-label">Size (sqft)</div>
+          <input class="row-input" type="number" min="0" step="50" inputmode="numeric" value="${u.size}" oninput="updateUnit(${i},'size',this.value)"></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('unit-mix-container').innerHTML = html;
+}
+function updateUnit(i,f,val) { unitMix[i][f] = (f==='name')?val:(parseFloat(val)||0); calcOutputsOnly(); }
+function addUnitType() { unitMix.push({name:'New type', count:10, size:1000}); renderUnitMix(); calcOutputsOnly(); }
+function removeUnitType(i) { if (unitMix.length<=1) return; unitMix.splice(i,1); renderUnitMix(); calcOutputsOnly(); }
+function unitMixSaleable() { return unitMix.reduce((a,u)=>a+u.count*u.size,0); }
+function unitMixTotalUnits() { return unitMix.reduce((a,u)=>a+u.count,0); }
+
+/* ============================================================
+   SCHEDULE
+============================================================ */
+function renderSched() {
+  let html = '';
+  schedYears.forEach((y,i) => {
+    html += `<div class="row-item">
+      <div class="row-label">Year ${i+1}</div>
+      <button class="remove-btn" onclick="removeSchedYear(${i})">×</button>
+      <div class="row-fields-3">
+        <div><div class="row-input-label">Sales %</div>
+          <input class="row-input" type="number" min="0" max="100" step="1" inputmode="decimal" value="${y.sales}" oninput="updateSched(${i},'sales',this.value)"></div>
+        <div><div class="row-input-label">Collections %</div>
+          <input class="row-input" type="number" min="0" max="100" step="1" inputmode="decimal" value="${y.coll}" oninput="updateSched(${i},'coll',this.value)"></div>
+        <div><div class="row-input-label">Completion %</div>
+          <input class="row-input" type="number" min="0" max="100" step="1" inputmode="decimal" value="${y.comp}" oninput="updateSched(${i},'comp',this.value)"></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('sched-container').innerHTML = html;
+}
+function updateSched(i,f,val) {
+  let n = parseFloat(val) || 0;
+  n = Math.max(0, Math.min(100, n));
+  schedYears[i][f] = n;
+  // Enforce cumulative ordering across years
+  let needsReRender = false;
+  for (let j=1; j<schedYears.length; j++) {
+    if (schedYears[j].sales < schedYears[j-1].sales) { schedYears[j].sales = schedYears[j-1].sales; needsReRender = true; }
+    if (schedYears[j].coll  < schedYears[j-1].coll)  { schedYears[j].coll  = schedYears[j-1].coll;  needsReRender = true; }
+    if (schedYears[j].comp  < schedYears[j-1].comp)  { schedYears[j].comp  = schedYears[j-1].comp;  needsReRender = true; }
+  }
+  ensurePhaseLengths();
+  if (needsReRender) renderSched(); // only re-render if we actually clamped something
+  calcOutputsOnly();
+}
+function addSchedYear() { schedYears.push({sales:100,coll:10,comp:100}); ensurePhaseLengths(); renderSched(); renderCosts(); calcOutputsOnly(); }
+function removeSchedYear(i) { if (schedYears.length<=1) return; schedYears.splice(i,1); ensurePhaseLengths(); renderSched(); renderCosts(); calcOutputsOnly(); }
+
+/* ============================================================
+   COSTS
+============================================================ */
+function renderCosts() {
+  let n = schedYears.length + 1;
+  let yLabels = ['Yr0']; for (let i=1;i<n;i++) yLabels.push('Yr'+i);
+  let cols = `repeat(${n},1fr)`;
+  let html = '';
+
+  syncDerivedCosts(); // make sure derived totals are up to date before rendering
+
+  costs.forEach((c,ci) => {
+    let s = c.phase.reduce((a,b)=>a+(b||0),0);
+    let ok = Math.abs(s-100) < 0.5;
+
+    // Brokerage doesn't get user-controlled phasing — it follows sales schedule
+    let phaseInputs;
+    if (c.key === 'brokerage') {
+      phaseInputs = yLabels.map(lbl => `
+        <div class="phase-cell"><label>${lbl}</label><input type="text" value="auto" disabled style="opacity:0.6"></div>`).join('');
+    } else {
+      phaseInputs = yLabels.map((lbl,yi) => `
+        <div class="phase-cell">
+          <label>${lbl}</label>
+          <input type="number" min="0" max="100" step="1" inputmode="decimal" value="${c.phase[yi]||0}" oninput="updateCostPhase(${ci},${yi},this.value)">
+        </div>`).join('');
+    }
+
+    // Header row varies by cost type
+    let headerRow;
+    if (c.key === 'premiumFsi') {
+      // Fully derived from Project Setup — read-only display
+      headerRow = `<div class="cost-header">
+        <div class="cost-name">${c.name} <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px">derived from Project Setup</span></div>
+        <div class="cost-total-row">
+          <label>₹ Cr</label>
+          <input type="text" value="${c.total.toFixed(2)}" disabled style="opacity:0.7;width:88px">
+        </div>
+      </div>`;
+    } else if (c.type === 'perSqft') {
+      headerRow = `<div class="cost-header">
+        <div class="cost-name">${c.name}</div>
+        <div class="cost-total-row">
+          <label>₹/sqft</label>
+          <input type="number" min="0" step="50" inputmode="decimal" value="${c.perSqft||0}" oninput="updateCostPerSqft(${ci},this.value)" style="width:88px">
+          <label style="margin-left:10px">₹ Cr</label>
+          <input type="text" value="${c.total.toFixed(2)}" disabled style="opacity:0.7;width:80px">
+        </div>
+      </div>`;
+    } else if (c.type === 'pctSales') {
+      headerRow = `<div class="cost-header">
+        <div class="cost-name">${c.name} <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px">paid per sale, follows sales schedule</span></div>
+        <div class="cost-total-row">
+          <label>% of GDV</label>
+          <input type="number" min="0" max="100" step="0.25" inputmode="decimal" value="${c.pctSales||0}" oninput="updateCostPctSales(${ci},this.value)" style="width:88px">
+          <label style="margin-left:10px">₹ Cr</label>
+          <input type="text" value="${c.total.toFixed(2)}" disabled style="opacity:0.7;width:80px">
+        </div>
+      </div>`;
+    } else {
+      // flat
+      headerRow = `<div class="cost-header">
+        <div class="cost-name">${c.name}</div>
+        <div class="cost-total-row">
+          <label>₹ Cr</label>
+          <input type="number" min="0" step="0.5" inputmode="decimal" value="${c.total}" oninput="updateCostTotal(${ci},this.value)">
+        </div>
+      </div>`;
+    }
+
+    let phaseSumDisplay;
+    if (c.key === 'brokerage') {
+      phaseSumDisplay = `<div class="phase-sum ok" style="font-style:italic">Phasing follows sales schedule (paid per sale)</div>`;
+    } else {
+      phaseSumDisplay = `<div class="phase-sum" id="phase-sum-${ci}">${ok?'✓ 100%':'⚠ '+s.toFixed(0)+'% — must equal 100%'}</div>`;
+    }
+
+    html += `<div class="cost-card">
+      ${headerRow}
+      <div class="phase-grid" style="grid-template-columns:${cols}">${phaseInputs}</div>
+      ${phaseSumDisplay}
+    </div>`;
+  });
+  document.getElementById('costs-container').innerHTML = html;
+}
+
+function updatePhaseSums() {
+  costs.forEach((c,ci) => {
+    if (c.key === 'brokerage') return;
+    let el = document.getElementById('phase-sum-'+ci); if (!el) return;
+    let s = c.phase.reduce((a,b)=>a+(b||0),0);
+    let ok = Math.abs(s-100) < 0.5;
+    el.textContent = ok ? '✓ 100%' : '⚠ '+s.toFixed(0)+'% — must equal 100%';
+    el.className = 'phase-sum '+(ok?'ok':'bad');
+  });
+}
+
+function updateCostTotal(i,val) { costs[i].total = parseFloat(val)||0; calcOutputsOnly(); }
+
+function updateCostPerSqft(i,val) {
+  costs[i].perSqft = parseFloat(val)||0;
+  syncDerivedCosts();
+  let card = document.querySelectorAll('#costs-container .cost-card')[i];
+  if (card) {
+    let totalInput = card.querySelector('input[disabled]');
+    if (totalInput) totalInput.value = costs[i].total.toFixed(2);
+  }
+  calcOutputsOnly();
+}
+
+function updateCostPctSales(i,val) {
+  costs[i].pctSales = parseFloat(val)||0;
+  syncDerivedCosts();
+  let card = document.querySelectorAll('#costs-container .cost-card')[i];
+  if (card) {
+    let totalInput = card.querySelector('input[disabled]');
+    if (totalInput) totalInput.value = costs[i].total.toFixed(2);
+  }
+  calcOutputsOnly();
+}
+
+function updateCostPhase(ci,yi,val) {
+  costs[ci].phase[yi] = parseFloat(val)||0;
+  updatePhaseSums();
+  calcOutputsOnly();
+}
+
+// Recompute derived cost totals (perSqft × area, %GDV × GDV, premium FSI cost)
+function syncDerivedCosts() {
+  let acres = v('acres'), fsiBase = v('fsi-base'), fsiPremPct = v('fsi-premium-pct')/100;
+  let baseArea = acres * SQ_FT_PER_ACRE * fsiBase;
+  let premArea = baseArea * fsiPremPct;
+  let totalArea = baseArea + premArea;
+  let saleable = useUnitMix ? unitMixSaleable() : totalArea;
+  let premFsiCost = v('fsi-premium-cost');
+  let bp = blendedPrice();
+  let gdv = saleable * bp;
+
+  costs.forEach(c => {
+    if (c.key === 'premiumFsi') {
+      // derived from Project Setup — premium area × premium FSI cost
+      c.perSqft = premFsiCost;
+      c.total = (premArea * premFsiCost) / 1e7;
+    } else if (c.type === 'perSqft') {
+      c.total = (c.perSqft||0) * saleable / 1e7;
+    } else if (c.type === 'pctSales') {
+      c.total = (c.pctSales||0)/100 * gdv / 1e7;
+    }
+    // 'flat' types are user-entered totals, leave as-is
+  });
+}
+
+// Trigger when project setup inputs change — sync costs and recalc
+function onProjectInputChange() {
+  syncDerivedCosts();
+  // Update disabled total inputs in cost cards in place
+  costs.forEach((c,i) => {
+    if (c.type === 'perSqft' || c.type === 'pctSales') {
+      let card = document.querySelectorAll('#costs-container .cost-card')[i];
+      if (card) {
+        let totalInput = card.querySelector('input[disabled]');
+        if (totalInput) totalInput.value = c.total.toFixed(2);
+      }
+    }
+    // Premium FSI also has its perSqft auto-synced — refresh that input if visible
+    if (c.key === 'premiumFsi') {
+      let card = document.querySelectorAll('#costs-container .cost-card')[i];
+      if (card) {
+        let inputs = card.querySelectorAll('input[disabled]');
+        inputs.forEach(inp => inp.value = c.total.toFixed(2));
+      }
+    }
+  });
+  calcOutputsOnly();
+}
+
+/* ============================================================
+   QUARTER DATE HELPERS
+============================================================ */
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const Q_START_MONTHS = [0, 3, 6, 9];
+
+function getStartQuarterIndex() { return parseInt(document.getElementById('start-quarter').value)||2; }
+function getStartYear() { return parseInt(document.getElementById('start-year').value)||2025; }
+function getPrelaunchGap() { return Math.max(1, parseInt(document.getElementById('prelaunch-gap').value)||3); }
+
+function quarterLabel(qIndex) {
+  let sq = getStartQuarterIndex() - 1;
+  let sy = getStartYear();
+  let totalQ = sq + qIndex;
+  let yr = sy + Math.floor(totalQ / 4);
+  let qInYear = totalQ % 4;
+  let monthIdx = Q_START_MONTHS[qInYear];
+  return MONTH_NAMES[monthIdx] + ' ' + yr;
+}
+
+function yearLabel(yearIndex) {
+  let gap = getPrelaunchGap();
+  if (yearIndex === 0) {
+    return 'Year 0 (' + quarterLabel(0) + ' \u2013 ' + quarterLabel(gap - 1) + ')';
+  }
+  let startQ = gap + (yearIndex - 1) * 4;
+  let endQ = startQ + 3;
+  return 'Year ' + yearIndex + ' (' + quarterLabel(startQ) + ' \u2013 ' + quarterLabel(endQ) + ')';
+}
+
+function yearLabelShort(yearIndex) {
+  if (yearIndex === 0) return 'Yr0';
+  return 'Yr' + yearIndex;
+}
+
+/* ============================================================
+   CORE CALCULATIONS
+============================================================ */
+function calcEffFlows(dy) {
+  let res = [];
+  for (let i = 0; i < dy.length; i++) {
+    let curCum = dy[i].sales * dy[i].coll;
+    let prevCum = i > 0 ? dy[i-1].sales * dy[i-1].coll : 0;
+    res.push(curCum - prevCum);
+  }
+  return res;
+}
+
+function getPricedGDV(saleable, velMult) {
+  if (!bands.length) return 0;
+  let sorted = [...bands].sort((a,b) => a.cumPct - b.cumPct);
+  let rev = 0, prev = 0;
+  sorted.forEach(b => { rev += (b.cumPct-prev)/100 * saleable * b.price * velMult; prev = b.cumPct; });
+  return rev;
+}
+
+function computeCashflows(velMult, constMult) {
+  let acres = v('acres'), fsiBase = v('fsi-base'), fsiPremPct = v('fsi-premium-pct')/100;
+  let baseArea = acres * SQ_FT_PER_ACRE * fsiBase;
+  let premArea = baseArea * fsiPremPct;
+  let fsiTotal = fsiBase * (1 + fsiPremPct);
+  let fsiSaleable = baseArea + premArea;
+  let saleable = useUnitMix ? unitMixSaleable() : fsiSaleable;
+  let dmPct = v('dm-fee')/100;
+  let liqPct = v('rera-liquid')/100;
+  let lockPct = v('rera-locked')/100;
+  let landOppCost = v('land-opp-cost')*1e7;
+  let intRate = v('int-rate')/100;
+  let gap = getPrelaunchGap();
+  let gdv = getPricedGDV(saleable, velMult||1);
+  let dmTotal = gdv * dmPct;
+  let devGdv = gdv - dmTotal;
+
+  syncDerivedCosts();
+
+  let dy = schedYears.map(y => ({sales:y.sales/100, coll:y.coll/100, comp:y.comp/100}));
+  let effPcts = calcEffFlows(dy);
+  let n = schedYears.length;
+  let pj70d=[], pj70m=[];
+  let yearData = [];
+
+  let brokerage = costs.find(c => c.key === 'brokerage');
+  let brokeragePct = brokerage ? (brokerage.pctSales||0)/100 : 0;
+  let brokerageTotalCr = brokeragePct * gdv;
+
+  for (let i=0;i<n;i++) {
+    let ep = effPcts[i];
+    let gc = ep*gdv, dmc = gc*dmPct, devc = gc-dmc;
+    let prevC = i>0 ? dy[i-1].comp : 0, thisC = dy[i].comp;
+    let d30 = devc*liqPct, d70 = devc*lockPct;
+    let dd70 = d70*thisC;
+    for (let j=0;j<i;j++) dd70 += pj70d[j]*(thisC-prevC);
+    pj70d.push(d70);
+    let devIn = d30 + dd70;
+    let m30=dmc*liqPct, m70=dmc*lockPct, md70=m70*thisC;
+    for (let j=0;j<i;j++) md70 += pj70m[j]*(thisC-prevC);
+    pj70m.push(m70);
+
+    let prevSalesPct = i>0 ? dy[i-1].sales : 0;
+    let incSalesPct = dy[i].sales - prevSalesPct;
+    let brokerageThisYear = incSalesPct * brokerageTotalCr;
+
+    let totalOut = 0;
+    costs.forEach(c => {
+      if (c.key === 'brokerage') { totalOut += brokerageThisYear; return; }
+      let pp = (c.phase[i+1]||0)/100;
+      let amt = c.total*1e7*pp;
+      if (c.key==='construction') amt *= (constMult||1);
+      totalOut += amt;
+    });
+    yearData.push({label: yearLabelShort(i+1), fullLabel: yearLabel(i+1), gc, dmc, devc, d30, d70, dd70, devIn, totalOut, netCF:devIn-totalOut, comp:thisC, ep});
+  }
+
+  let y0out = 0;
+  costs.forEach(c => {
+    if (c.key === 'brokerage') return;
+    let pp = (c.phase[0]||0)/100;
+    let amt = c.total*1e7*pp;
+    if (c.key==='construction') amt *= (constMult||1);
+    y0out += amt;
+  });
+  let totalCost = costs.reduce((a,c) => {
+    let amt = c.total*1e7;
+    if (c.key==='construction') amt *= (constMult||1);
+    return a + amt;
+  }, 0);
+  let grossProfit = devGdv - totalCost;
+
+  // === DEBT / EQUITY / INTEREST (annual) ===
+  let debtBalance = 0, peakDebt = 0, totalInterest = 0;
+  yearData.forEach(y => {
+    let interest = debtBalance * intRate;
+    totalInterest += interest;
+    y.interest = -interest;
+    let availableAfterInt = y.netCF - interest;
+    if (availableAfterInt < 0) {
+      y.debtCF = -availableAfterInt; y.equityCF = 0; debtBalance += y.debtCF;
+    } else if (debtBalance > 0) {
+      let repay = Math.min(availableAfterInt, debtBalance);
+      y.debtCF = -repay; y.equityCF = availableAfterInt - repay; debtBalance -= repay;
+    } else {
+      y.debtCF = 0; y.equityCF = availableAfterInt;
+    }
+    y.debtBalance = debtBalance;
+    if (debtBalance > peakDebt) peakDebt = debtBalance;
+  });
+
+  // === QUARTERLY CF FOR IRR ===
+  let quarterlyCF = [];
+  let quarterlyEquity = [];
+  // Year 0: spread equity outflow across pre-launch gap quarters
+  let y0perQ = y0out / gap;
+  for (let q=0; q<gap; q++) {
+    quarterlyCF.push({ label: quarterLabel(q), equityCF: -y0perQ, netCF: -y0perQ, yearIdx: 0 });
+    quarterlyEquity.push(-y0perQ);
+  }
+  // Years 1..n: 4 quarters each
+  yearData.forEach((y, yi) => {
+    let eqPerQ = y.equityCF / 4;
+    let netPerQ = y.netCF / 4;
+    for (let q=0; q<4; q++) {
+      let qIdx = gap + yi*4 + q;
+      quarterlyCF.push({ label: quarterLabel(qIdx), equityCF: eqPerQ, netCF: netPerQ, yearIdx: yi+1 });
+      quarterlyEquity.push(eqPerQ);
+    }
+  });
+
+  // IRR: compute on quarterly series, then annualise
+  let quarterlyIRR = computeIRR(quarterlyEquity);
+  let equityIRR = quarterlyIRR !== null ? Math.pow(1 + quarterlyIRR, 4) - 1 : null;
+
+  let quarterlyEquityWithLand = [...quarterlyEquity];
+  quarterlyEquityWithLand[0] -= landOppCost;
+  let quarterlyIRRWithLand = computeIRR(quarterlyEquityWithLand);
+  let equityIRRWithLand = quarterlyIRRWithLand !== null ? Math.pow(1 + quarterlyIRRWithLand, 4) - 1 : null;
+
+  // Annual break-even & peak
+  let cumNetSeries = [-y0out], cumNet = -y0out, breakEvenYr = null, peakCapital = -y0out;
+  yearData.forEach((y, i) => {
+    cumNet += y.netCF; cumNetSeries.push(cumNet);
+    if (cumNet >= 0 && breakEvenYr === null) breakEvenYr = i+1;
+    if (cumNet < peakCapital) peakCapital = cumNet;
+  });
+
+  let totalEquityInvested = quarterlyEquity.filter(x => x < 0).reduce((a,b) => a + Math.abs(b), 0);
+
+  return {yearData, y0out, totalCost, gdv, devGdv, dmTotal, grossProfit, saleable, fsiSaleable, fsiTotal,
+          baseArea, premArea, gap,
+          breakEvenYr, peakCapital, peakDebt, totalInterest, totalEquityInvested,
+          cumNetSeries, equityIRR, equityIRRWithLand, landOppCost,
+          quarterlyCF, quarterlyEquity, quarterlyEquityWithLand};
+}
+
+/* ============================================================
+   IRR via bisection (quarterly periods)
+============================================================ */
+function npv(cashflows, rate) {
+  let total = 0;
+  for (let i=0;i<cashflows.length;i++) total += cashflows[i] / Math.pow(1+rate, i);
+  return total;
+}
+function computeIRR(cashflows) {
+  if (!cashflows.length) return null;
+  let hasNeg = cashflows.some(c => c<0), hasPos = cashflows.some(c => c>0);
+  if (!hasNeg || !hasPos) return null;
+  let lo = -0.99, hi = 10;
+  let nLo = npv(cashflows, lo), nHi = npv(cashflows, hi);
+  if (nLo * nHi > 0) return null;
+  for (let iter=0;iter<100;iter++) {
+    let mid = (lo+hi)/2;
+    let nMid = npv(cashflows, mid);
+    if (Math.abs(nMid) < 1e-3) return mid;
+    if (nLo * nMid < 0) { hi = mid; nHi = nMid; } else { lo = mid; nLo = nMid; }
+  }
+  return (lo+hi)/2;
+}
+
+
+/* ============================================================
+   WARNINGS ENGINE
+============================================================ */
+function computeWarnings(data) {
+  let warnings = [];
+  let {gdv, totalCost, grossProfit, devGdv} = data;
+  let margin = gdv > 0 ? (grossProfit/gdv)*100 : 0;
+
+  // Phase sums
+  let badPhase = costs.filter(c => Math.abs(c.phase.reduce((a,b)=>a+(b||0),0)-100)>0.5);
+  if (badPhase.length) warnings.push({type:'error', icon:'⚠', title: badPhase.map(c=>c.name).join(', ')+' — phasing does not sum to 100%', detail:'Fix cost phasing before trusting cashflow outputs.'});
+
+  // Margin check
+  if (gdv > 0 && margin < 15) warnings.push({type:'warn', icon:'↓', title:`Gross margin is ${margin.toFixed(1)}% — below 15% threshold`, detail:'Projects below 15% margin carry elevated risk of viability under stress.'});
+
+  // IRR vs hurdle
+  let hurdle = v('hurdle-rate')/100;
+  let eIRR = data.landOppCost > 0 ? data.equityIRRWithLand : data.equityIRR;
+  if (eIRR !== null && eIRR < hurdle) {
+    warnings.push({type:'warn', icon:'⚡', title:`Equity IRR (${(eIRR*100).toFixed(1)}%) is below your hurdle of ${(hurdle*100).toFixed(0)}%`, detail:'Returns don\'t clear your benchmark — review pricing, costs, schedule, or financing assumptions.'});
+  }
+
+  // Sales velocity check
+  let maxSales = Math.max(...schedYears.map(y=>y.sales));
+  if (maxSales < 80) warnings.push({type:'warn', icon:'⇢', title:`Cumulative sales reach only ${maxSales}% by final year`, detail:'Ensure your sales schedule accounts for 100% inventory absorption.'});
+
+  // Collections vs completion lag
+  let lagIssue = schedYears.some((y,i) => i>0 && y.coll > 40 && y.comp < 30);
+  if (lagIssue) warnings.push({type:'info', icon:'ℹ', title:'Collections may be running ahead of construction completion', detail:'RERA-locked 70% won\'t release until construction milestones are met.'});
+
+  // Cost phasing all in year 0
+  let frontLoaded = costs.filter(c => (c.phase[0]||0) > 80 && c.key !== 'land' && c.key !== 'approvals');
+  if (frontLoaded.length) warnings.push({type:'info', icon:'ℹ', title:`${frontLoaded.map(c=>c.name).join(', ')} — heavily front-loaded in Year 0`, detail:'Verify this reflects actual payment timing.'});
+
+  return warnings;
+}
+
+function renderWarnings(warnings) {
+  let cur = SCREENS.find(s => document.getElementById('screen-'+s).classList.contains('active'));
+  if (cur === 'overview' || cur === 'cashflow') {
+    let html = warnings.map(w => `<div class="warning-card ${w.type}">
+      <span class="warning-icon">${w.icon}</span>
+      <div class="warning-text">${w.title}<span>${w.detail}</span></div>
+    </div>`).join('');
+    document.getElementById('warnings-container').innerHTML = html;
+  } else {
+    document.getElementById('warnings-container').innerHTML = '';
+  }
+  let badge = document.getElementById('cost-badge');
+  let costWarnings = warnings.filter(w => w.type === 'error');
+  badge.style.display = costWarnings.length ? '' : 'none';
+}
+
+/* ============================================================
+   OVERVIEW
+============================================================ */
+let ovCfChart = null, ovCostChart = null;
+function renderOverview(data) {
+  let {yearData, y0out, totalCost, gdv, devGdv, grossProfit, breakEvenYr, peakEquity} = data;
+  let margin = gdv > 0 ? (grossProfit/gdv)*100 : 0;
+
+  // Big metrics
+  let hurdle = v('hurdle-rate')/100;
+  let eIRR = data.landOppCost > 0 ? data.equityIRRWithLand : data.equityIRR;
+  let bm = [
+    {label:'Total GDV', val: fmtCrShort(gdv), cls:''},
+    {label:'Gross Profit', val: fmtCrShort(grossProfit), cls: grossProfit>=0?'pos':'neg'},
+    {label:'Gross Margin', val: margin.toFixed(1)+'%', cls: margin>=20?'pos':margin>=12?'warn':'neg'},
+    {label:'Equity IRR', val: eIRR===null?'—':(eIRR*100).toFixed(1)+'%', cls: eIRR===null?'':eIRR>=hurdle?'pos':eIRR>=hurdle*0.7?'warn':'neg'},
+    {label:'Equity Invested', val: fmtCrShort(data.totalEquityInvested), cls:'warn'},
+    {label:'Peak Debt', val: fmtCrShort(data.peakDebt), cls:'warn'},
+    {label:'Break-even', val: breakEvenYr ? yearLabel(breakEvenYr) : 'Not reached', cls: breakEvenYr?'pos':'neg'},
+    {label:'Total Cost', val: fmtCrShort(totalCost), cls:''},
+  ];
+  document.getElementById('ov-big-metrics').innerHTML = bm.map(m => `
+    <div class="big-metric">
+      <div class="big-metric-label">${m.label}</div>
+      <div class="big-metric-val ${m.cls}">${m.val}</div>
+    </div>`).join('');
+
+  // Cashflow chart (cumulative net CF — operational, financing-agnostic)
+  let labs = ['Yr0'];
+  let cfData = [-y0out/1e7];
+  let cum = -y0out;
+  yearData.forEach(y => { cum += y.netCF; labs.push(y.label); cfData.push(cum/1e7); });
+  if (ovCfChart) ovCfChart.destroy();
+  let isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  let gridCol = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+  let textCol = isDark ? '#5c5a56' : '#a09e9b';
+  ovCfChart = new Chart(document.getElementById('ov-cf-chart').getContext('2d'), {
+    type:'line',
+    data:{labels:labs, datasets:[{
+      data:cfData, borderColor:'#2d7dd2',
+      backgroundColor:'rgba(45,125,210,0.08)', fill:true, tension:0.35,
+      pointBackgroundColor:cfData.map(v=>v>=0?'#0d6b4f':'#b03a2e'), pointRadius:4
+    }]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'₹'+c.parsed.y.toFixed(1)+' Cr'}}},
+      scales:{x:{grid:{display:false}, ticks:{color:textCol, font:{size:10}}}, y:{ticks:{color:textCol, font:{size:10}, callback:v=>'₹'+v.toFixed(0)}, grid:{color:gridCol}}}}
+  });
+
+  // Cost donut
+  let costLabels = costs.map(c=>c.name);
+  let costVals = costs.map(c=>c.total);
+  let palette = ['#2458b3','#0d6b4f','#92600a','#b03a2e','#5b4fcf','#0e7490','#374151'];
+  if (ovCostChart) ovCostChart.destroy();
+  ovCostChart = new Chart(document.getElementById('ov-cost-chart').getContext('2d'), {
+    type:'doughnut',
+    data:{labels:costLabels, datasets:[{data:costVals, backgroundColor:palette, borderWidth:0, hoverOffset:6}]},
+    options:{responsive:true, maintainAspectRatio:false, cutout:'62%',
+      plugins:{legend:{position:'right', labels:{color:isDark?'#8c8a86':'#6b6a68', font:{size:10}, boxWidth:10, padding:10}},
+      tooltip:{callbacks:{label:c=>'₹'+c.parsed.toFixed(0)+' Cr'}}}}
+  });
+
+  // Assumptions snapshot
+  let bp = blendedPrice();
+  document.getElementById('ov-assumptions').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;font-size:12px">
+      <div><span style="color:var(--text3)">Land area</span><br><strong>${v('acres')} acres</strong></div>
+      <div><span style="color:var(--text3)">Total FSI</span><br><strong>${(v('fsi-base')*(1+v('fsi-premium-pct')/100)).toFixed(2)}</strong></div>
+      <div><span style="color:var(--text3)">Saleable area</span><br><strong>${fmtSqft(v('acres')*SQ_FT_PER_ACRE*v('fsi-base')*(1+v('fsi-premium-pct')/100))}</strong></div>
+      <div><span style="color:var(--text3)">Blended price</span><br><strong>₹${Math.round(bp).toLocaleString('en-IN')}/sqft</strong></div>
+      <div><span style="color:var(--text3)">Project duration</span><br><strong>${schedYears.length} years</strong></div>
+      <div><span style="color:var(--text3)">DM fee</span><br><strong>${v('dm-fee')}% of GDV</strong></div>
+    </div>`;
+}
+
+/* ============================================================
+   SCHEDULE PREVIEW
+============================================================ */
+function renderSchedPreview(data) {
+  let {yearData} = data;
+  let html = `<thead><tr><th>Year</th><th>Coll %</th><th>Gross collections</th><th>Dev portion</th><th>30% liquid</th><th>70% disb.</th><th>Dev inflow</th></tr></thead><tbody>`;
+  yearData.forEach(y => {
+    html += `<tr><td>${y.label}</td><td>${(y.ep*100).toFixed(1)}%</td><td>${fmtCr(y.gc)}</td><td>${fmtCr(y.devc)}</td><td>${fmtCr(y.d30)}</td><td>${fmtCr(y.dd70)}</td><td>${fmtCr(y.devIn)}</td></tr>`;
+  });
+  html += `</tbody>`;
+  document.getElementById('sched-preview-table').innerHTML = html;
+}
+
+/* ============================================================
+   CASHFLOW TAB
+============================================================ */
+let cfBar = null, cfDebtChart = null;
+function renderCashflowTab(data) {
+  let {yearData, y0out, totalCost, gdv, grossProfit, peakDebt, totalEquityInvested,
+       equityIRR, equityIRRWithLand, landOppCost, breakEvenYr} = data;
+  document.getElementById('cf-gdv').textContent = fmtCr(gdv);
+  document.getElementById('cf-cost').textContent = fmtCr(totalCost);
+  let pel = document.getElementById('cf-profit');
+  pel.textContent = fmtCr(grossProfit);
+  pel.className = 'metric-val '+(grossProfit>=0?'pos':'neg');
+  let margin = gdv>0 ? (grossProfit/gdv)*100 : 0;
+  document.getElementById('cf-margin').textContent = margin.toFixed(1)+'%';
+  document.getElementById('cf-equity').textContent = fmtCr(totalEquityInvested);
+  document.getElementById('cf-peakdebt').textContent = fmtCr(peakDebt);
+
+  let hurdle = v('hurdle-rate')/100;
+  let eIRR = landOppCost > 0 ? equityIRRWithLand : equityIRR;
+  let pi = document.getElementById('cf-projirr');
+  pi.textContent = eIRR===null ? '—' : (eIRR*100).toFixed(1)+'%';
+  pi.className = 'metric-val '+(eIRR===null?'':eIRR>=hurdle?'pos':eIRR>=hurdle*0.7?'warn':'neg');
+  let bei = document.getElementById('cf-equityirr');
+  bei.textContent = breakEvenYr ? yearLabel(breakEvenYr) : 'Not reached';
+  bei.className = 'metric-val '+(breakEvenYr?'pos':'neg');
+
+  // Header is grouped: Operating | Project | Financing | Equity
+  let html = `<thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:bottom">Year</th>
+      <th colspan="3" style="text-align:center;border-bottom:none;color:var(--text2);font-weight:700">Operating</th>
+      <th colspan="2" style="text-align:center;border-bottom:none;color:var(--text2);font-weight:700">Project</th>
+      <th colspan="3" style="text-align:center;border-bottom:none;color:var(--text2);font-weight:700">Financing</th>
+      <th rowspan="2" style="vertical-align:bottom">Equity CF</th>
+    </tr>
+    <tr>
+      <th>Inflow</th>
+      <th>Outflows</th>
+      <th>Net CF</th>
+      <th>Project CF</th>
+      <th>Cumulative</th>
+      <th>Interest</th>
+      <th>Debt CF</th>
+      <th>Debt bal.</th>
+    </tr>
+  </thead><tbody>`;
+
+  // Year 0 row
+  html += `<tr><td>${yearLabel(0)}</td>
+    <td>—</td>
+    <td class="td-neg">(${fmtCr(y0out)})</td>
+    <td class="td-neg">(${fmtCr(y0out)})</td>
+    <td class="td-neg">(${fmtCr(y0out)})</td>
+    <td class="td-neg">(${fmtCr(y0out)})</td>
+    <td>—</td>
+    <td>—</td>
+    <td>—</td>
+    <td class="td-neg">(${fmtCr(y0out)})</td>
+  </tr>`;
+
+  let labs=[yearLabelShort(0)], debtBals=[0], ins=[0], disbs=[0], outs=[y0out/1e7];
+  let tInflow = 0, tOutflow = y0out, tNet = -y0out, tInt = 0, tProj = -y0out, tDebt = 0, tEq = -y0out;
+  let cumProj = -y0out;
+
+  yearData.forEach(y => {
+    let netCls = y.netCF>=0?'td-pos':'td-neg';
+    let intCell = y.interest<0 ? `<span class="td-warn">(${fmtCr(Math.abs(y.interest))})</span>` : '—';
+
+    let projCFThisYear = y.netCF + y.interest;
+    let projCls = projCFThisYear>=0?'td-pos':'td-neg';
+    cumProj += projCFThisYear;
+    let cumCls = cumProj>=0?'td-pos':'td-neg';
+
+    let debtCell;
+    if (y.debtCF > 0.5) debtCell = `<span>${fmtCr(y.debtCF)}</span>`;
+    else if (y.debtCF < -0.5) debtCell = `<span>(${fmtCr(Math.abs(y.debtCF))})</span>`;
+    else debtCell = '—';
+    let eqCell;
+    if (y.equityCF > 0.5) eqCell = `<span class="td-pos">${fmtCr(y.equityCF)}</span>`;
+    else if (y.equityCF < -0.5) eqCell = `<span class="td-neg">(${fmtCr(Math.abs(y.equityCF))})</span>`;
+    else eqCell = '—';
+
+    html += `<tr><td style="white-space:normal;min-width:130px">${y.fullLabel || y.label}</td>
+      <td>${fmtCr(y.devIn)}</td>
+      <td class="td-neg">(${fmtCr(y.totalOut)})</td>
+      <td class="${netCls}">${y.netCF>=0?fmtCr(y.netCF):'('+fmtCr(Math.abs(y.netCF))+')'}</td>
+      <td class="${projCls}">${projCFThisYear>=0?fmtCr(projCFThisYear):'('+fmtCr(Math.abs(projCFThisYear))+')'}</td>
+      <td class="${cumCls}">${cumProj>=0?fmtCr(cumProj):'('+fmtCr(Math.abs(cumProj))+')'}</td>
+      <td>${intCell}</td>
+      <td>${debtCell}</td>
+      <td>${y.debtBalance>0.5 ? fmtCr(y.debtBalance) : '—'}</td>
+      <td>${eqCell}</td>
+    </tr>`;
+    labs.push(y.label);
+    debtBals.push(y.debtBalance/1e7);
+    ins.push(y.d30/1e7);
+    disbs.push(y.dd70/1e7);
+    outs.push(y.totalOut/1e7);
+
+    tInflow += y.devIn;
+    tOutflow += y.totalOut;
+    tNet += y.netCF;
+    tInt += y.interest;
+    tProj += projCFThisYear;
+    tDebt += y.debtCF;
+    tEq += y.equityCF;
+  });
+
+  let tNetCls = tNet>=0 ? 'td-pos' : 'td-neg';
+  let tProjCls = tProj>=0 ? 'td-pos' : 'td-neg';
+  let tEqCls = tEq>=0 ? 'td-pos' : 'td-neg';
+  let tDebtStr;
+  if (Math.abs(tDebt) < 0.5) tDebtStr = '—';
+  else if (tDebt >= 0) tDebtStr = fmtCr(tDebt);
+  else tDebtStr = '(' + fmtCr(Math.abs(tDebt)) + ')';
+
+  html += `</tbody><tfoot><tr>
+    <td>Total</td>
+    <td>${fmtCr(tInflow)}</td>
+    <td class="td-neg">(${fmtCr(tOutflow)})</td>
+    <td class="${tNetCls}">${tNet>=0?fmtCr(tNet):'('+fmtCr(Math.abs(tNet))+')'}</td>
+    <td class="${tProjCls}">${tProj>=0?fmtCr(tProj):'('+fmtCr(Math.abs(tProj))+')'}</td>
+    <td>—</td>
+    <td class="td-warn">${tInt<0?'('+fmtCr(Math.abs(tInt))+')':'—'}</td>
+    <td>${tDebtStr}</td>
+    <td>—</td>
+    <td class="${tEqCls}">${tEq>=0?fmtCr(tEq):'('+fmtCr(Math.abs(tEq))+')'}</td>
+  </tr></tfoot>`;
+  document.getElementById('cf-table').innerHTML = html;
+
+  let isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  let gridCol = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+  let textCol = isDark ? '#5c5a56' : '#a09e9b';
+
+  if (cfBar) cfBar.destroy();
+  cfBar = new Chart(document.getElementById('cf-bar-chart').getContext('2d'), {
+    type:'bar',
+    data:{labels:labs, datasets:[
+      {label:'Liquid (30%)', data:ins, backgroundColor:'#2d7dd2', borderRadius:3, stack:'in'},
+      {label:'From 70%', data:disbs, backgroundColor:'#0d6b4f', borderRadius:3, stack:'in'},
+      {label:'Outflows', data:outs.map(x=>-x), backgroundColor:'#b03a2e', borderRadius:3, stack:'out'}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'₹'+Math.abs(c.parsed.y).toFixed(1)+' Cr'}}},
+      scales:{x:{stacked:true, grid:{display:false}, ticks:{color:textCol, font:{size:10}}},
+        y:{stacked:false, ticks:{color:textCol, font:{size:10}, callback:v=>'₹'+v.toFixed(0)}, grid:{color:gridCol}}}}
+  });
+
+  if (cfDebtChart) cfDebtChart.destroy();
+  cfDebtChart = new Chart(document.getElementById('cf-debt-chart').getContext('2d'), {
+    type:'line',
+    data:{labels:labs, datasets:[{
+      data:debtBals, borderColor:'#92600a',
+      backgroundColor:'rgba(146,96,10,0.12)', fill:true, tension:0.3, pointRadius:4
+    }]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'₹'+c.parsed.y.toFixed(1)+' Cr outstanding'}}},
+      scales:{x:{grid:{display:false}, ticks:{color:textCol, font:{size:10}}},
+        y:{ticks:{color:textCol, font:{size:10}, callback:v=>'₹'+v.toFixed(0)}, grid:{color:gridCol}}}}
+  });
+}
+
+/* ============================================================
+   KPI RIBBON UPDATE
+============================================================ */
+function updateKPIs(data) {
+  let {gdv, grossProfit, peakDebt, equityIRR, equityIRRWithLand, landOppCost} = data;
+  let margin = gdv>0 ? (grossProfit/gdv)*100 : 0;
+  let hurdle = v('hurdle-rate')/100;
+  let eIRR = landOppCost > 0 ? equityIRRWithLand : equityIRR;
+  document.getElementById('k-gdv').textContent = fmtCrShort(gdv);
+  let kp = document.getElementById('k-profit');
+  kp.textContent = fmtCrShort(grossProfit);
+  kp.className = 'kpi-value '+(grossProfit>=0?'pos':'neg');
+  let km = document.getElementById('k-margin');
+  km.textContent = margin.toFixed(1)+'%';
+  km.className = 'kpi-value '+(margin>=20?'pos':margin>=12?'warn':'neg');
+  let ke = document.getElementById('k-equity');
+  ke.textContent = eIRR===null?'—':(eIRR*100).toFixed(1)+'%';
+  ke.className = 'kpi-value '+(eIRR===null?'':eIRR>=hurdle?'pos':eIRR>=hurdle*0.7?'warn':'neg');
+  let kb = document.getElementById('k-breakeven');
+  kb.textContent = fmtCrShort(peakDebt);
+  kb.className = 'kpi-value warn';
+}
+
+/* ============================================================
+   OUTPUTS-ONLY RECALC (no re-render of input lists)
+============================================================ */
+function calcOutputsOnly() {
+  // Project screen derived metrics
+  let acres=v('acres'), fsiBase=v('fsi-base'), fsiPremPct=v('fsi-premium-pct')/100;
+  let units=v('units');
+  let baseArea = acres * SQ_FT_PER_ACRE * fsiBase;
+  let premArea = baseArea * fsiPremPct;
+  let fsiSaleable = baseArea + premArea;
+  let saleable = useUnitMix ? unitMixSaleable() : fsiSaleable;
+  let totalUnits = useUnitMix ? unitMixTotalUnits() : units;
+
+  document.getElementById('d-base-fsi-area').textContent = baseArea>0 ? fmtSqft(baseArea) : '—';
+  document.getElementById('d-prem-fsi-area').textContent = premArea>0 ? fmtSqft(premArea) : '—';
+  document.getElementById('d-saleable').textContent = saleable>0 ? fmtSqft(saleable) : '—';
+  document.getElementById('d-unitsize').textContent = totalUnits>0 && saleable>0 ? fmtNum(Math.round(saleable/totalUnits))+' sqft' : '—';
+
+  // Unit mix metrics
+  if (useUnitMix) {
+    document.getElementById('um-total-units').textContent = fmtNum(unitMixTotalUnits());
+    document.getElementById('um-saleable').textContent = fmtSqft(unitMixSaleable());
+    let diff = fsiSaleable - unitMixSaleable();
+    let diffPct = fsiSaleable>0 ? (diff/fsiSaleable*100) : 0;
+    let umVs = document.getElementById('um-vs-fsi');
+    umVs.textContent = (diff>=0?'-':'+')+fmtSqft(Math.abs(diff))+' ('+diffPct.toFixed(1)+'%)';
+    umVs.className = 'metric-val '+(Math.abs(diffPct)<5?'pos':Math.abs(diffPct)<15?'warn':'neg');
+  }
+
+  let bp=blendedPrice(), gdv=saleable*bp, dmFee=gdv*v('dm-fee')/100, devGdv=gdv-dmFee;
+  document.getElementById('d-blended').textContent = '₹'+Math.round(bp).toLocaleString('en-IN');
+  document.getElementById('d-gdv').textContent = fmtCr(gdv);
+  document.getElementById('d-dmfee').textContent = fmtCr(dmFee);
+  document.getElementById('d-devgdv').textContent = fmtCr(devGdv);
+
+  // DM fee total on cost screen
+  let dmEl = document.getElementById('dm-fee-total');
+  if (dmEl) dmEl.value = fmtCr(dmFee);
+
+  // Pricing screen
+  let prices = bands.map(b=>b.price);
+  document.getElementById('pb-blended').textContent = '₹'+Math.round(bp).toLocaleString('en-IN');
+  document.getElementById('pb-gdv').textContent = fmtCr(gdv);
+  document.getElementById('pb-low').textContent = prices.length ? '₹'+Math.min(...prices).toLocaleString('en-IN') : '—';
+  document.getElementById('pb-high').textContent = prices.length ? '₹'+Math.max(...prices).toLocaleString('en-IN') : '—';
+
+  // Cost summary (note: DM fee is now part of cost picture conceptually but tracked via collections deduction)
+  let totalCost = costs.reduce((a,c)=>a+c.total*1e7, 0);
+  let profit = devGdv - totalCost;
+  let margin = gdv>0 ? (profit/gdv)*100 : 0;
+  document.getElementById('c-total').textContent = fmtCr(totalCost);
+  document.getElementById('c-persqft').textContent = saleable>0 ? '₹'+Math.round(totalCost/saleable).toLocaleString('en-IN')+'/sqft' : '—';
+  document.getElementById('c-margin').textContent = margin.toFixed(1)+'%';
+  let cpEl = document.getElementById('c-profit');
+  cpEl.textContent = fmtCr(profit);
+  cpEl.className = 'metric-val '+(profit>=0?'pos':'neg');
+
+  let data = computeCashflows(1,1);
+  renderSchedPreview(data);
+  updateKPIs(data);
+
+  let warnings = computeWarnings(data);
+  renderWarnings(warnings);
+
+  let cur = SCREENS.find(s => document.getElementById('screen-'+s).classList.contains('active'));
+  if (cur === 'cashflow') renderCashflowTab(data);
+  if (cur === 'overview') renderOverview(data);
+  if (cur === 'irr') renderIRRTab(data);
+}
+
+function calc() {
+  renderBands(); renderSched(); renderCosts();
+  if (useUnitMix) renderUnitMix();
+  calcOutputsOnly();
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+/* ============================================================
+   IRR BREAKUP TAB
+============================================================ */
+let irrNpvChart = null;
+function renderIRRTab(data) {
+  let {equityIRR, equityIRRWithLand, landOppCost, totalEquityInvested, quarterlyCF, quarterlyEquity, quarterlyEquityWithLand} = data;
+  let hurdle = v('hurdle-rate')/100;
+  let eIRR = landOppCost > 0 ? equityIRRWithLand : equityIRR;
+  let eIRRWithLand = equityIRRWithLand;
+
+  // Metrics
+  document.getElementById('irr-val').textContent = eIRR===null ? '—' : (eIRR*100).toFixed(1)+'%';
+  document.getElementById('irr-val').className = 'metric-val '+(eIRR===null?'':eIRR>=hurdle?'pos':eIRR>=hurdle*0.7?'warn':'neg');
+
+  if (landOppCost > 0 && eIRRWithLand !== null) {
+    document.getElementById('irr-val-land').textContent = (eIRRWithLand*100).toFixed(1)+'%';
+    document.getElementById('irr-val-land').className = 'metric-val '+(eIRRWithLand>=hurdle?'pos':eIRRWithLand>=hurdle*0.7?'warn':'neg');
+  } else {
+    document.getElementById('irr-val-land').textContent = landOppCost > 0 ? '—' : 'N/A (no opp. cost)';
+    document.getElementById('irr-val-land').className = 'metric-val';
+  }
+
+  document.getElementById('irr-equity-in').textContent = fmtCr(totalEquityInvested);
+  let totalReturned = quarterlyEquity.filter(x=>x>0).reduce((a,b)=>a+b,0);
+  document.getElementById('irr-equity-out').textContent = fmtCr(totalReturned);
+
+  // Quarterly cashflow table
+  let html = `<thead><tr><th>Quarter</th><th>Period</th><th>Equity CF (₹ Cr)</th><th>Cumulative (₹ Cr)</th></tr></thead><tbody>`;
+  let cumEq = 0;
+  quarterlyCF.forEach((q, i) => {
+    cumEq += q.equityCF;
+    let eqCls = q.equityCF >= 0 ? 'td-pos' : 'td-neg';
+    let cumCls = cumEq >= 0 ? 'td-pos' : 'td-neg';
+    let yearTag = 'Year ' + q.yearIdx;
+    html += `<tr>
+      <td>${q.label}</td>
+      <td style="color:var(--text3)">${yearTag}</td>
+      <td class="${eqCls}">${q.equityCF>=0?fmtCr(q.equityCF):'('+fmtCr(Math.abs(q.equityCF))+')'}</td>
+      <td class="${cumCls}">${cumEq>=0?fmtCr(cumEq):'('+fmtCr(Math.abs(cumEq))+')'}</td>
+    </tr>`;
+  });
+  html += `</tbody>`;
+  document.getElementById('irr-cf-table').innerHTML = html;
+
+  // NPV curve
+  let isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  let gridCol = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+  let textCol = isDark ? '#5c5a56' : '#a09e9b';
+
+  let rates = [], npvs = [];
+  let cfSeries = landOppCost > 0 ? quarterlyEquityWithLand : quarterlyEquity;
+  for (let r = -5; r <= 60; r += 1) {
+    let annualRate = r/100;
+    let quarterlyRate = Math.pow(1 + annualRate, 0.25) - 1;
+    let npvVal = 0;
+    for (let i=0; i<cfSeries.length; i++) npvVal += cfSeries[i] / Math.pow(1+quarterlyRate, i);
+    rates.push(r);
+    npvs.push(npvVal/1e7);
+  }
+
+  if (irrNpvChart) irrNpvChart.destroy();
+  irrNpvChart = new Chart(document.getElementById('irr-npv-chart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: rates.map(r=>r+'%'),
+      datasets: [{
+        data: npvs, borderColor: '#2d7dd2', backgroundColor: 'rgba(45,125,210,0.05)',
+        fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {display: false},
+        tooltip: {callbacks: {label: c => 'NPV: ₹'+c.parsed.y.toFixed(1)+' Cr at '+rates[c.dataIndex]+'% discount'}},
+        annotation: eIRR !== null ? {
+          annotations: {
+            irrLine: {type:'line', scaleID:'x', value: Math.round(eIRR*100)+'%', borderColor:'#0d6b4f', borderWidth:2, borderDash:[4,4],
+              label:{display:true, content:'IRR: '+(eIRR*100).toFixed(1)+'%', position:'start', backgroundColor:'#0d6b4f', color:'white', font:{size:10}}}
+          }
+        } : {}
+      },
+      scales: {
+        x: {grid:{display:false}, ticks:{color:textCol, font:{size:9}, maxTicksLimit:12}},
+        y: {ticks:{color:textCol, font:{size:10}, callback:v=>'₹'+v.toFixed(0)+' Cr'}, grid:{color:gridCol}}
+      }
+    }
+  });
+
+  // IRR sensitivity table
+  let sensHtml = `<thead><tr><th>Variable</th><th>−10%</th><th>Base</th><th>+10%</th></tr></thead><tbody>`;
+  let baseIRR = eIRR;
+  let scenarios = [
+    {name: 'Selling price', fn: (mult) => { let d=computeCashflows(1,1); let q2=[...d.quarterlyEquity]; /* recalc with price change not easily doable in current arch */ return baseIRR; }},
+  ];
+  // Simplified: just show the base IRR with a note
+  sensHtml += `<tr><td colspan="4" style="color:var(--text3);text-align:center;padding:16px">Sensitivity analysis will be available in the next update</td></tr>`;
+  sensHtml += `</tbody>`;
+  document.getElementById('irr-sens-table').innerHTML = sensHtml;
+}
+
+// Setup enter key
+document.getElementById('s-project-name').addEventListener('keydown', e => { if(e.key==='Enter') launchApp(); });
+
+/* ============================================================
+   PROJECT SAVE / LOAD (localStorage)
+============================================================ */
+const STORAGE_KEY = 'devCockpit_projects';
+
+function getAllInputValues() {
+  let ids = ['acres','fsi-base','fsi-premium-pct','fsi-premium-cost','units',
+             'dm-fee','rera-liquid','rera-locked','land-opp-cost','int-rate','hurdle-rate',
+             'start-quarter','start-year','prelaunch-gap'];
+  let vals = {};
+  ids.forEach(id => { let el = document.getElementById(id); if (el) vals[id] = el.value; });
+  return vals;
+}
+
+function setAllInputValues(vals) {
+  Object.keys(vals).forEach(id => {
+    let el = document.getElementById(id);
+    if (el) el.value = vals[id];
+  });
+}
+
+function getProjectState() {
+  return {
+    project: {...project},
+    inputs: getAllInputValues(),
+    bands: JSON.parse(JSON.stringify(bands)),
+    schedYears: JSON.parse(JSON.stringify(schedYears)),
+    costs: costs.map(c => ({...c, phase:[...c.phase]})),
+    unitMix: JSON.parse(JSON.stringify(unitMix)),
+    useUnitMix: useUnitMix,
+    savedAt: new Date().toISOString()
+  };
+}
+
+function loadProjectState(state) {
+  project = {...state.project};
+  bands = state.bands || bands;
+  schedYears = state.schedYears || schedYears;
+  costs = state.costs ? state.costs.map(c => ({...c, phase:[...c.phase]})) : costs;
+  unitMix = state.unitMix || unitMix;
+  useUnitMix = state.useUnitMix || false;
+  setAllInputValues(state.inputs || {});
+  document.getElementById('use-unit-mix').checked = useUnitMix;
+  document.getElementById('unit-mix-section').style.display = useUnitMix ? '' : 'none';
+  updateProjectIdentity();
+  ensurePhaseLengths();
+  calc();
+}
+
+function getSavedProjects() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch(e) { return {}; }
+}
+
+function saveProject() {
+  if (!project.name) { alert('Please set a project name first.'); return; }
+  let all = getSavedProjects();
+  all[project.name] = getProjectState();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  showSaveStatus('Project "'+project.name+'" saved.');
+  renderProjectsList();
+}
+
+function saveProjectAs() {
+  let name = prompt('Save as (new project name):');
+  if (!name || !name.trim()) return;
+  project.name = name.trim();
+  updateProjectIdentity();
+  saveProject();
+}
+
+function loadProject(name) {
+  let all = getSavedProjects();
+  if (!all[name]) return;
+  loadProjectState(all[name]);
+  switchScreen('overview');
+  showSaveStatus('Loaded "'+name+'".');
+}
+
+function deleteProject(name) {
+  if (!confirm('Delete project "'+name+'"? This cannot be undone.')) return;
+  let all = getSavedProjects();
+  delete all[name];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  renderProjectsList();
+}
+
+function duplicateProject(name) {
+  let all = getSavedProjects();
+  if (!all[name]) return;
+  let newName = name + ' (copy)';
+  let copy = JSON.parse(JSON.stringify(all[name]));
+  copy.project.name = newName;
+  copy.savedAt = new Date().toISOString();
+  all[newName] = copy;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  renderProjectsList();
+}
+
+function showSaveStatus(msg) {
+  let el = document.getElementById('save-status');
+  el.textContent = msg;
+  el.style.display = '';
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+function renderProjectsList() {
+  document.getElementById('cur-proj-name').textContent = project.name || 'Untitled';
+  let all = getSavedProjects();
+  let keys = Object.keys(all).sort();
+  if (!keys.length) {
+    document.getElementById('projects-list').innerHTML = '<div class="no-projects">No saved projects yet. Save your current project above.</div>';
+    return;
+  }
+  let html = '';
+  keys.forEach(name => {
+    let p = all[name];
+    let savedAt = p.savedAt ? new Date(p.savedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+    let meta = [p.project.location, p.project.developer].filter(Boolean).join(' · ');
+    let isActive = name === project.name;
+    html += `<div class="proj-item">
+      <div class="proj-item-info">
+        <div class="proj-item-name">${name}${isActive?' <span style="font-size:10px;color:var(--emerald);font-weight:500">(current)</span>':''}</div>
+        <div class="proj-item-meta">${meta?meta+' · ':''}${savedAt}</div>
+      </div>
+      <div class="proj-item-actions">
+        ${isActive?'':'<button class="proj-btn primary" onclick="loadProject(\''+name.replace(/'/g,"\\'")+'\')">Load</button>'}
+        <button class="proj-btn" onclick="duplicateProject('${name.replace(/'/g,"\\'")}')">Duplicate</button>
+        <button class="proj-btn danger" onclick="deleteProject('${name.replace(/'/g,"\\'")}')">Delete</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById('projects-list').innerHTML = html;
+}
+
+/* ============================================================
+   EXPORT — EXCEL
+============================================================ */
+function exportExcel() {
+  let data = computeCashflows(1,1);
+  let wb = XLSX.utils.book_new();
+
+  // Sheet 1: Summary
+  let summary = [
+    ['Project', project.name],
+    ['Location', project.location],
+    ['Developer', project.developer],
+    [''],
+    ['KEY METRICS'],
+    ['Total GDV (₹ Cr)', (data.gdv/1e7).toFixed(2)],
+    ['Total Cost (₹ Cr)', (data.totalCost/1e7).toFixed(2)],
+    ['Gross Profit (₹ Cr)', (data.grossProfit/1e7).toFixed(2)],
+    ['Gross Margin (%)', data.gdv>0?((data.grossProfit/data.gdv)*100).toFixed(1):'—'],
+    ['Project IRR (%)', data.projIRR!==null?(data.projIRR*100).toFixed(1):'—'],
+    ['Equity IRR (%)', data.equityIRR!==null?(data.equityIRR*100).toFixed(1):'—'],
+    ['Peak Debt (₹ Cr)', (data.peakDebt/1e7).toFixed(2)],
+    ['Equity Invested (₹ Cr)', (data.totalEquityInvested/1e7).toFixed(2)],
+    ['Break-even Year', data.breakEvenYr||'Not reached'],
+    [''],
+    ['PROJECT SETUP'],
+    ['Land area (acres)', v('acres')],
+    ['Base FSI', v('fsi-base')],
+    ['Premium FSI (%)', v('fsi-premium-pct')],
+    ['Total saleable area (sqft)', Math.round(data.saleable)],
+    ['Blended price (₹/sqft)', Math.round(blendedPrice())],
+    ['DM fee (%)', v('dm-fee')],
+    ['Interest rate (%)', v('int-rate')],
+  ];
+  let ws1 = XLSX.utils.aoa_to_sheet(summary);
+  XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+
+  // Sheet 2: Cost Build-up
+  let costRows = [['Cost Head','Type','₹/sqft or %','Total (₹ Cr)']];
+  costs.forEach(c => {
+    let rateCol = c.type==='perSqft'?c.perSqft:c.type==='pctSales'?(c.pctSales+'%'):'—';
+    costRows.push([c.name, c.type, rateCol, c.total.toFixed(2)]);
+  });
+  let ws2 = XLSX.utils.aoa_to_sheet(costRows);
+  XLSX.utils.book_append_sheet(wb, ws2, 'Costs');
+
+  // Sheet 3: Sales Schedule
+  let schedRows = [['Year','Sales %','Collections %','Completion %']];
+  schedYears.forEach((y,i) => schedRows.push(['Year '+(i+1), y.sales, y.coll, y.comp]));
+  let ws3 = XLSX.utils.aoa_to_sheet(schedRows);
+  XLSX.utils.book_append_sheet(wb, ws3, 'Schedule');
+
+  // Sheet 4: Pricing Bands
+  let bandRows = [['Band','Cumulative % Sold','Price (₹/sqft)']];
+  bands.forEach((b,i) => bandRows.push(['Band '+(i+1), b.cumPct, b.price]));
+  let ws4 = XLSX.utils.aoa_to_sheet(bandRows);
+  XLSX.utils.book_append_sheet(wb, ws4, 'Pricing');
+
+  // Sheet 5: Cashflow
+  let cfRows = [['Year','Inflow (₹ Cr)','Outflows (₹ Cr)','Net CF (₹ Cr)','Interest (₹ Cr)','Project CF (₹ Cr)','Cumul. (₹ Cr)','Debt CF (₹ Cr)','Equity CF (₹ Cr)','Debt Bal (₹ Cr)']];
+  cfRows.push(['Yr0', 0, (data.y0out/1e7).toFixed(2), (-data.y0out/1e7).toFixed(2), 0, (-data.y0out/1e7).toFixed(2), (-data.y0out/1e7).toFixed(2), 0, (-data.y0out/1e7).toFixed(2), 0]);
+  let cumP = -data.y0out;
+  data.yearData.forEach(y => {
+    let projCF = y.netCF + y.interest;
+    cumP += projCF;
+    cfRows.push([
+      y.label,
+      (y.devIn/1e7).toFixed(2),
+      (y.totalOut/1e7).toFixed(2),
+      (y.netCF/1e7).toFixed(2),
+      (y.interest/1e7).toFixed(2),
+      (projCF/1e7).toFixed(2),
+      (cumP/1e7).toFixed(2),
+      (y.debtCF/1e7).toFixed(2),
+      (y.equityCF/1e7).toFixed(2),
+      (y.debtBalance/1e7).toFixed(2)
+    ]);
+  });
+  let ws5 = XLSX.utils.aoa_to_sheet(cfRows);
+  XLSX.utils.book_append_sheet(wb, ws5, 'Cashflow');
+
+  XLSX.writeFile(wb, (project.name||'DevCockpit')+'_feasibility.xlsx');
+}
+
+/* ============================================================
+   EXPORT — PDF (captures overview dashboard)
+============================================================ */
+async function exportPDF() {
+  // Temporarily show overview screen for capture
+  let prevScreen = SCREENS.find(s => document.getElementById('screen-'+s).classList.contains('active'));
+  switchScreen('overview');
+  await new Promise(r => setTimeout(r, 500)); // wait for charts to render
+
+  let content = document.querySelector('.content-area');
+  let canvas = await html2canvas(content, {
+    scale: 2,
+    backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#f7f6f3',
+    useCORS: true,
+    logging: false
+  });
+
+  let {jsPDF} = window.jspdf;
+  let pdf = new jsPDF('p', 'mm', 'a4');
+  let imgData = canvas.toDataURL('image/jpeg', 0.92);
+  let pageW = 210, pageH = 297;
+  let imgW = pageW - 20; // 10mm margins
+  let imgH = (canvas.height * imgW) / canvas.width;
+  let yPos = 10;
+
+  // If image is taller than one page, scale to fit
+  if (imgH > pageH - 20) {
+    let scale = (pageH - 20) / imgH;
+    imgW *= scale;
+    imgH *= scale;
+  }
+  pdf.addImage(imgData, 'JPEG', 10, yPos, imgW, imgH);
+  pdf.save((project.name||'DevCockpit')+'_dashboard.pdf');
+
+  // Restore previous screen
+  if (prevScreen && prevScreen !== 'overview') switchScreen(prevScreen);
+}
+
+/* ============================================================
+   EXPORT — EXECUTIVE SUMMARY PDF
+============================================================ */
+async function exportExecSummary() {
+  let data = computeCashflows(1,1);
+  let {jsPDF} = window.jspdf;
+  let pdf = new jsPDF('p', 'mm', 'a4');
+  let y = 15, lh = 6, margin = 15, pw = 210 - margin*2;
+
+  // Title
+  pdf.setFontSize(20);
+  pdf.setFont(undefined, 'bold');
+  pdf.text(project.name || 'Untitled Project', margin, y);
+  y += 8;
+  pdf.setFontSize(11);
+  pdf.setFont(undefined, 'normal');
+  pdf.setTextColor(120);
+  let meta = [project.location, project.developer].filter(Boolean).join(' · ');
+  if (meta) { pdf.text(meta, margin, y); y += 6; }
+  pdf.text('Executive Summary — ' + new Date().toLocaleDateString('en-IN', {day:'numeric',month:'long',year:'numeric'}), margin, y);
+  y += 10;
+
+  // KPIs
+  pdf.setDrawColor(200);
+  pdf.setFillColor(245,244,240);
+  pdf.rect(margin, y, pw, 28, 'F');
+  pdf.setTextColor(60);
+  pdf.setFontSize(9);
+  let kpis = [
+    ['Total GDV', (data.gdv/1e7).toFixed(1)+' Cr'],
+    ['Gross Profit', (data.grossProfit/1e7).toFixed(1)+' Cr'],
+    ['Margin', data.gdv>0?((data.grossProfit/data.gdv)*100).toFixed(1)+'%':'—'],
+    ['Project IRR', data.projIRR!==null?(data.projIRR*100).toFixed(1)+'%':'—'],
+    ['Equity IRR', data.equityIRR!==null?(data.equityIRR*100).toFixed(1)+'%':'—'],
+  ];
+  let kw = pw / kpis.length;
+  kpis.forEach((kpi, i) => {
+    let x = margin + i * kw + 6;
+    pdf.setFont(undefined, 'normal');
+    pdf.setFontSize(8);
+    pdf.setTextColor(140);
+    pdf.text(kpi[0], x, y + 8);
+    pdf.setFont(undefined, 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(30);
+    pdf.text('₹'+kpi[1], x, y + 18);
+  });
+  y += 34;
+
+  // Assumptions
+  pdf.setFont(undefined, 'bold');
+  pdf.setFontSize(11);
+  pdf.setTextColor(60);
+  pdf.text('KEY ASSUMPTIONS', margin, y);
+  y += 7;
+  pdf.setFont(undefined, 'normal');
+  pdf.setFontSize(9);
+  pdf.setTextColor(80);
+  let assumptions = [
+    'Land: '+v('acres')+' acres | Base FSI: '+v('fsi-base')+' | Premium FSI: '+v('fsi-premium-pct')+'%',
+    'Total saleable area: '+fmtNum(Math.round(data.saleable))+' sqft',
+    'Blended price: ₹'+fmtNum(Math.round(blendedPrice()))+'/sqft | DM fee: '+v('dm-fee')+'%',
+    'Total cost: ₹'+(data.totalCost/1e7).toFixed(1)+' Cr | Interest rate: '+v('int-rate')+'%',
+    'Project duration: '+schedYears.length+' years',
+  ];
+  assumptions.forEach(line => { pdf.text(line, margin, y); y += 5; });
+  y += 5;
+
+  // Financing
+  pdf.setFont(undefined, 'bold');
+  pdf.setFontSize(11);
+  pdf.text('FINANCING PROFILE', margin, y);
+  y += 7;
+  pdf.setFont(undefined, 'normal');
+  pdf.setFontSize(9);
+  let finLines = [
+    'Equity invested: ₹'+(data.totalEquityInvested/1e7).toFixed(1)+' Cr',
+    'Peak debt: ₹'+(data.peakDebt/1e7).toFixed(1)+' Cr',
+    'Total interest: ₹'+(data.totalInterest/1e7).toFixed(1)+' Cr',
+    'Break-even: '+(data.breakEvenYr?'Year '+data.breakEvenYr:'Not reached within project timeline'),
+  ];
+  finLines.forEach(line => { pdf.text(line, margin, y); y += 5; });
+  y += 5;
+
+  // Cashflow table
+  pdf.setFont(undefined, 'bold');
+  pdf.setFontSize(11);
+  pdf.text('YEAR-WISE CASHFLOW (₹ Cr)', margin, y);
+  y += 7;
+  pdf.setFontSize(8);
+  pdf.setFont(undefined, 'bold');
+  let cols = ['Year','Inflow','Outflow','Net CF','Project CF','Cumul.','Equity CF'];
+  let cw = pw / cols.length;
+  cols.forEach((c,i) => pdf.text(c, margin + i*cw, y));
+  y += 4;
+  pdf.setDrawColor(180);
+  pdf.line(margin, y, margin+pw, y);
+  y += 4;
+
+  pdf.setFont(undefined, 'normal');
+  let cumP2 = -data.y0out;
+  let cfTableRows = [['Yr0','—',(data.y0out/1e7).toFixed(1),(-data.y0out/1e7).toFixed(1),(-data.y0out/1e7).toFixed(1),(-data.y0out/1e7).toFixed(1),(-data.y0out/1e7).toFixed(1)]];
+  data.yearData.forEach(row => {
+    let projCF2 = row.netCF + row.interest;
+    cumP2 += projCF2;
+    cfTableRows.push([
+      row.label,
+      (row.devIn/1e7).toFixed(1),
+      (row.totalOut/1e7).toFixed(1),
+      (row.netCF/1e7).toFixed(1),
+      (projCF2/1e7).toFixed(1),
+      (cumP2/1e7).toFixed(1),
+      (row.equityCF/1e7).toFixed(1)
+    ]);
+  });
+  cfTableRows.forEach(row => {
+    row.forEach((cell,i) => pdf.text(String(cell), margin + i*cw, y));
+    y += 4;
+  });
+  y += 5;
+
+  // Risk highlights
+  pdf.setFont(undefined, 'bold');
+  pdf.setFontSize(11);
+  pdf.text('RISK HIGHLIGHTS', margin, y);
+  y += 7;
+  pdf.setFont(undefined, 'normal');
+  pdf.setFontSize(9);
+  let warnings = computeWarnings(data);
+  if (warnings.length) {
+    warnings.forEach(w => {
+      if (y > 275) { pdf.addPage(); y = 15; }
+      pdf.text('• '+w.title, margin, y);
+      y += 5;
+    });
+  } else {
+    pdf.text('No significant risks flagged.', margin, y);
+  }
+
+  pdf.save((project.name||'DevCockpit')+'_executive_summary.pdf');
+}
+</script>
+</body>
+</html>
